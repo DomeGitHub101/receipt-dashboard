@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+backend/.venv/
+backend/*.db
+backend/.dev-secret
+backend/.ocr-data/
+backend/uploads/
+**/__pycache__/
+.pytest_cache/
+.env
+backend/.env
+test-results/
+playwright-report/

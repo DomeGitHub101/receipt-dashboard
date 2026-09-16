@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: slipsnap
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-slipsnap-local}
+      POSTGRES_DB: slipsnap
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U slipsnap"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://slipsnap:${POSTGRES_PASSWORD:-slipsnap-local}@db:5432/slipsnap
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in the root .env before running Compose}
+      ALLOWED_ORIGIN: http://localhost:5173
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - receipts:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+  frontend:
+    build: .
+    environment:
+      API_PROXY_TARGET: http://backend:8000
+    ports:
+      - "127.0.0.1:5173:5173"
+    depends_on:
+      - backend
+volumes:
+  postgres_data:
+  receipts:
