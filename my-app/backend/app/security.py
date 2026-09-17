@@ -38,7 +38,7 @@ async def current_user(auth: HTTPAuthorizationCredentials | None = Depends(beare
 
 def check_origin(request: Request):
     # Cookie-authenticated endpoints accept only our frontend origin.
-    if request.headers.get('origin') not in {settings.allowed_origin, 'http://127.0.0.1:5173'}:
+    if request.headers.get('origin') not in {settings.allowed_origin, 'http://127.0.0.1:5173', *settings.additional_origins}:
         raise HTTPException(403, 'Untrusted origin')
 
 async def issue_session(user, db, response):

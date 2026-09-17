@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 14
     cookie_secure: bool = False
     allowed_origin: str = 'http://localhost:5173'
+    additional_origins: list[str] = []
     upload_dir: Path = ROOT / 'uploads'
     ocr_languages: str = 'eng+tha'
     tesseract_cmd: str = ''

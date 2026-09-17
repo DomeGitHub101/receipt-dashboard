@@ -23,7 +23,7 @@ from .ocr import read_receipt
 from .parser import parse_receipt
 
 app = FastAPI(title='SlipSnap API', version='1.0.0')
-app.add_middleware(CORSMiddleware, allow_origins=[settings.allowed_origin, 'http://127.0.0.1:5173'],
+app.add_middleware(CORSMiddleware, allow_origins=[settings.allowed_origin, 'http://127.0.0.1:5173', *settings.additional_origins],
                    allow_credentials=True, allow_methods=['GET', 'POST', 'PUT', 'DELETE'], allow_headers=['Authorization', 'Content-Type'])
 DEFAULTS = [('Food & drinks', '#00704a'), ('Transport', '#c79254'), ('Shopping', '#8ba99a'),
             ('Bills & utilities', '#90735c'), ('Health', '#b1bf84'), ('Entertainment', '#dbb6a0'), ('Salary', '#466c67'), ('Other', '#a5a59a')]
