@@ -112,11 +112,11 @@ def test_categories_and_receipt_access(client, monkeypatch):
     from PIL import Image
     image = io.BytesIO()
     Image.new('RGB', (100, 100), 'white').save(image, format='PNG')
-    monkeypatch.setattr('app.main.read_receipt', lambda *_: 'TEST CAFE\n17/09/2569\nCoffee 80.00\nTOTAL 80.00')
+    monkeypatch.setattr('app.main.read_receipt', lambda *_: {'text': 'BANK TRANSFER\n17/09/2569\nAmount 80.00', 'qr_payloads': []})
     upload = client.post('/api/receipts/upload', headers=first, files={'file': ('receipt.png', image.getvalue(), 'image/png')})
     assert upload.status_code == 201, upload.text
     receipt = upload.json()
-    assert receipt['amount'] == 80
+    assert receipt['amount'] == '80.00'
     assert receipt['date'] == '2026-09-17'
     assert client.get(f'/api/receipts/{receipt["receipt_id"]}/file', headers=first).content == image.getvalue()
     second = register(client, 'other@example.com')
@@ -124,12 +124,40 @@ def test_categories_and_receipt_access(client, monkeypatch):
     assert transaction(client, second, receipt_id=receipt['receipt_id']).status_code == 404
 
 @pytest.mark.parametrize('text,amount,expected_date', [
-    ('CAFE\n17/09/2569\nLatte 125.00\nSubtotal 125.00\nVAT 8.75\nGrand Total 133.75\nCash 200.00\nChange 66.25', 133.75, '2026-09-17'),
-    ('ร้านกาแฟ\n2026-09-17\nกาแฟ 80.00\nยอดสุทธิ 80.00', 80, '2026-09-17'),
-    ('SHOP\n31/02/2026\nPhone 1234567', None, None),
-    ('SHOP\n17-09-26\nTOTAL\n1,234.50', 1234.50, '2026-09-17'),
+    ('17 ก.ย. 2569\nจำนวนเงิน\n50.00\nค่าธรรมเนียม 0.00', '50.00', '2026-09-17'),
+    ('15 ก . ุ ย . 2569 - 07:04\nจ ํ า น ว น เง ิ น\n150.00', '150.00', '2026-09-15'),
+    ('๑๗ กันยายน ๒๕๖๙\nจำนวนเงิน ๑,๒๓๔.๕๐ บาท', '1234.50', '2026-09-17'),
+    ('2026-09-17\nAmount 210.00 THB', '210.00', '2026-09-17'),
+    ('17/09/2569\nAmount\n80.00', '80.00', '2026-09-17'),
+    ('31/02/2026\nAccount 123456789\nFee 20.00', None, None),
+    ('17/09/2026\nAmount 50.00\nAmount 150.00', None, '2026-09-17'),
 ])
-def test_parser(text, amount, expected_date):
+def test_bank_parser(text, amount, expected_date):
     result = parse_receipt(text)
     assert result['amount'] == amount
     assert result['date'] == expected_date
+    assert result['kind'] == 'expense'
+    assert result['merchant'] == 'Bank transfer'
+
+@pytest.mark.parametrize('month,name', list(enumerate(['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'], 1)))
+def test_thai_months(month, name):
+    assert parse_receipt(f'17 {name} 2569')['date'] == f'2026-{month:02d}-17'
+
+def test_qr_reference_preserves_case():
+    reference = '20260917AbCdEfGh123456789'
+    qr = '0046000600000101030140225' + reference + '5102TH91040000'
+    result = parse_receipt('17 ก.ย. 2569\nจำนวนเงิน 50.00', [qr])
+    assert result['reference_code'] == reference
+    assert result['reference_source'] == 'qr'
+
+def test_bank_save_without_reference_and_duplicate_protection(client):
+    auth = register(client)
+    for _ in range(2):
+        row = transaction(client, auth, source='bank_transfer', reference_code=None)
+        assert row.status_code == 201, row.text
+    ref = '20260917AbCdEfGh123456789'
+    assert transaction(client, auth, source='bank_transfer', reference_code=ref).status_code == 201
+    assert transaction(client, auth, source='bank_transfer', reference_code=ref).status_code == 409
+    assert transaction(client, auth, source='bank_transfer', kind='income').status_code == 422
+    other = register(client, 'another@example.com')
+    assert transaction(client, other, source='bank_transfer', reference_code=ref).status_code == 201

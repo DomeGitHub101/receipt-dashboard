@@ -139,29 +139,35 @@ export function EntryForm({
   return (
     <form className="entry-form" onSubmit={submit}>
       <ErrorBox error={error} />
-      {isTransfer ? <div className="notice">สลิปโอนเงินออก · บันทึกเป็นรายจ่าย</div> : <div className="segmented" aria-label="Transaction type">
-        {(['expense', 'income'] as const).map((kind) => (
-          <button
-            key={kind}
-            type="button"
-            aria-pressed={form.kind === kind}
-            className={form.kind === kind ? 'active' : ''}
-            onClick={() => update('kind', kind)}
-          >
-            {kind === 'expense' ? '↗ Expense' : '↙ Income'}
-          </button>
-        ))}
-      </div>}
-      {!isTransfer && <label>
-        Merchant / description
-        <input
-          required
-          maxLength={160}
-          placeholder="e.g. Your neighborhood café"
-          value={form.merchant}
-          onChange={(e) => update('merchant', e.target.value)}
-        />
-      </label>}
+      {isTransfer ? (
+        <div className="notice">สลิปโอนเงินออก · บันทึกเป็นรายจ่าย</div>
+      ) : (
+        <div className="segmented" aria-label="Transaction type">
+          {(['expense', 'income'] as const).map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              aria-pressed={form.kind === kind}
+              className={form.kind === kind ? 'active' : ''}
+              onClick={() => update('kind', kind)}
+            >
+              {kind === 'expense' ? '↗ Expense' : '↙ Income'}
+            </button>
+          ))}
+        </div>
+      )}
+      {!isTransfer && (
+        <label>
+          Merchant / description
+          <input
+            required
+            maxLength={160}
+            placeholder="e.g. Your neighborhood café"
+            value={form.merchant}
+            onChange={(e) => update('merchant', e.target.value)}
+          />
+        </label>
+      )}
       <div className="form-grid">
         <label>
           {isTransfer ? 'จำนวนเงินที่โอนออก (บาท)' : 'Amount (THB)'}
@@ -187,12 +193,33 @@ export function EntryForm({
           />
         </label>
       </div>
-      {isTransfer && <>
-        {form.date && <p className="transfer-date">{new Date(`${form.date}T12:00:00`).toLocaleDateString('th-TH', {day: 'numeric', month: 'long', year: 'numeric'})}</p>}
-        <label>รหัสอ้างอิง
-          <input required minLength={8} maxLength={80} pattern="[A-Za-z0-9]+" autoCapitalize="off" autoCorrect="off" spellCheck={false} placeholder="รหัสอ้างอิงตามสลิป" value={form.reference_code || ''} onChange={e => update('reference_code', e.target.value)} />
-        </label>
-      </>}
+      {isTransfer && (
+        <>
+          {form.date && (
+            <p className="transfer-date">
+              {new Date(`${form.date}T12:00:00`).toLocaleDateString('th-TH', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            </p>
+          )}
+          <label>
+            รหัสอ้างอิง <span className="optional">ไม่จำเป็นต้องกรอก</span>
+            <input
+              minLength={8}
+              maxLength={80}
+              pattern="[A-Za-z0-9]+"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              placeholder="รหัสอ้างอิงตามสลิป (ถ้ามี)"
+              value={form.reference_code || ''}
+              onChange={(e) => update('reference_code', e.target.value)}
+            />
+          </label>
+        </>
+      )}
       <label>
         Category
         <select
@@ -221,62 +248,66 @@ export function EntryForm({
           onChange={(e) => update('notes', e.target.value)}
         />
       </label>
-      {!isTransfer && <details className="line-items" open={form.line_items.length > 0}>
-        <summary>Line items ({form.line_items.length})</summary>
-        {form.line_items.map((item, index) => (
-          <div className="line-item" key={index}>
-            <input
-              aria-label={`Item ${index + 1} name`}
-              required
-              maxLength={200}
-              value={item.name}
-              onChange={(e) =>
-                update(
-                  'line_items',
-                  form.line_items.map((v, i) => (i === index ? { ...v, name: e.target.value } : v)),
-                )
-              }
-            />
-            <input
-              aria-label={`Item ${index + 1} amount`}
-              type="number"
-              min="0"
-              step="0.01"
-              required
-              value={item.amount}
-              onChange={(e) =>
-                update(
-                  'line_items',
-                  form.line_items.map((v, i) =>
-                    i === index ? { ...v, amount: e.target.value } : v,
-                  ),
-                )
-              }
-            />
-            <button
-              type="button"
-              className="icon-button"
-              aria-label={`Remove item ${index + 1}`}
-              onClick={() =>
-                update(
-                  'line_items',
-                  form.line_items.filter((_, i) => i !== index),
-                )
-              }
-            >
-              <Trash2 size={16} />
-            </button>
-          </div>
-        ))}
-        <button
-          type="button"
-          className="text-button"
-          onClick={() => update('line_items', [...form.line_items, { name: '', amount: '' }])}
-        >
-          <Plus size={15} />
-          Add line item
-        </button>
-      </details>}
+      {!isTransfer && (
+        <details className="line-items" open={form.line_items.length > 0}>
+          <summary>Line items ({form.line_items.length})</summary>
+          {form.line_items.map((item, index) => (
+            <div className="line-item" key={index}>
+              <input
+                aria-label={`Item ${index + 1} name`}
+                required
+                maxLength={200}
+                value={item.name}
+                onChange={(e) =>
+                  update(
+                    'line_items',
+                    form.line_items.map((v, i) =>
+                      i === index ? { ...v, name: e.target.value } : v,
+                    ),
+                  )
+                }
+              />
+              <input
+                aria-label={`Item ${index + 1} amount`}
+                type="number"
+                min="0"
+                step="0.01"
+                required
+                value={item.amount}
+                onChange={(e) =>
+                  update(
+                    'line_items',
+                    form.line_items.map((v, i) =>
+                      i === index ? { ...v, amount: e.target.value } : v,
+                    ),
+                  )
+                }
+              />
+              <button
+                type="button"
+                className="icon-button"
+                aria-label={`Remove item ${index + 1}`}
+                onClick={() =>
+                  update(
+                    'line_items',
+                    form.line_items.filter((_, i) => i !== index),
+                  )
+                }
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => update('line_items', [...form.line_items, { name: '', amount: '' }])}
+          >
+            <Plus size={15} />
+            Add line item
+          </button>
+        </details>
+      )}
       {form.receipt_id && (
         <button
           type="button"

@@ -79,7 +79,7 @@ export default function Upload({
   return (
     <>
       <div className="scan-steps">
-        {['อัปโหลดสลิป SCB', 'ตรวจข้อมูลการโอน', 'บันทึกเงินออก'].map((step, index) => (
+        {['อัปโหลดสลิป', 'ตรวจข้อมูลการโอน', 'บันทึกเงินออก'].map((step, index) => (
           <div key={step} className={(saved ? 2 : scan ? 1 : 0) >= index ? 'active' : ''}>
             <span>
               {(saved ? 2 : scan ? 1 : 0) > index ? <Check size={16} /> : `0${index + 1}`}
@@ -113,7 +113,7 @@ export default function Upload({
           <section className="card upload-card">
             <div className="section-heading">
               <div>
-                <h2>อ่านสลิปโอนเงิน SCB</h2>
+                <h2>อ่านสลิปโอนเงิน</h2>
                 <p>รองรับสลิปโอนเงิน จ่ายเงิน และเติมเงิน ครั้งละหนึ่งรายการ</p>
               </div>
             </div>
@@ -174,7 +174,7 @@ export default function Upload({
                   <UploadCloud size={32} />
                 </span>
                 <h3>วางสลิปโอนเงินที่นี่</h3>
-                <p>หรือเลือกรูปสลิปที่บันทึกจาก SCB EASY</p>
+                <p>หรือเลือกรูปสลิปที่บันทึกจากแอปธนาคาร</p>
                 <button className="button primary" onClick={() => input.current?.click()}>
                   เลือกสลิปโอนเงิน
                   <ArrowRight size={17} />
@@ -194,9 +194,7 @@ export default function Upload({
               <span className="tip-bulb">✦</span>
               <div>
                 <strong>ให้เห็นวันที่ ยอดเงิน และ QR ชัดเจน</strong>
-                <p>
-                  ใช้รูปสลิปต้นฉบับ ไม่ตัดขอบ QR เพื่อช่วยอ่านรหัสอ้างอิงให้ตรงทุกตัว
-                </p>
+                <p>ใช้รูปสลิปต้นฉบับ ไม่ตัดขอบ QR เพื่อช่วยอ่านรหัสอ้างอิงให้ตรงทุกตัว</p>
               </div>
             </div>
             <div className="privacy-note">
@@ -235,7 +233,8 @@ export default function Upload({
                     reference_code: scan.reference_code,
                     source: 'bank_transfer',
                     kind: 'expense',
-                    category_id: categories.find(c => c.name === 'Other')?.id || categories[0]?.id || '',
+                    category_id:
+                      categories.find((c) => c.name === 'Other')?.id || categories[0]?.id || '',
                   }}
                   onSave={save}
                 />
@@ -248,9 +247,7 @@ export default function Upload({
               <div className="review-placeholder">
                 <ScanLine size={45} />
                 <h3>ข้อมูลจากสลิปจะปรากฏที่นี่</h3>
-                <p>
-                  วันที่และเดือนปีที่โอน จำนวนเงินที่โอนออก และรหัสอ้างอิง พร้อมแก้ไขก่อนบันทึก
-                </p>
+                <p>วันที่และเดือนปีที่โอน จำนวนเงินที่โอนออก และรหัสอ้างอิง พร้อมแก้ไขก่อนบันทึก</p>
                 <div className="skeleton-field" />
                 <div className="skeleton-field short" />
                 <div className="skeleton-field" />

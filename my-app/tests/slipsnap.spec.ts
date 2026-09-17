@@ -57,17 +57,19 @@ test('account, entries, filters, categories, receipt OCR, export and persistent 
     fullPage: true,
   })
   await page
-    .getByLabel('Upload receipt file')
+    .getByLabel('Upload bank slip file')
     .setInputFiles(path.resolve('tests/fixtures/receipt.png'))
-  await expect(page.getByLabel('Merchant / description')).toHaveValue(/DAILY BREW/, {
+  await expect(page.getByLabel('วันที่โอน (วัน/เดือน/ปี)')).toHaveValue('2026-09-17', {
     timeout: 100_000,
   })
-  await expect(page.getByLabel('Amount (THB)', { exact: true })).toHaveValue('210')
+  await expect(page.getByLabel('จำนวนเงินที่โอนออก (บาท)')).toHaveValue('210.00')
+  await expect(page.locator('input[placeholder="รหัสอ้างอิงตามสลิป (ถ้ามี)"]')).toHaveValue('')
+  await expect(page.locator('main')).not.toContainText('SCB')
   await page.getByLabel('Category', { exact: true }).selectOption({ label: 'Food & drinks' })
-  await page.getByRole('button', { name: 'Save transaction' }).click()
+  await page.getByRole('button', { name: 'บันทึกเงินโอนออก' }).click()
   await expect(page.getByRole('heading', { name: 'All tucked away.' })).toBeVisible()
   await page.getByRole('button', { name: 'See my transactions' }).click()
-  await expect(page.getByRole('button', { name: 'THE DAILY BREW', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Bank transfer', exact: true })).toBeVisible()
   await navigate('Overview')
   await expect(page.getByText('฿45,000.00', { exact: true }).first()).toBeVisible()
   await expect(page.locator('.recharts-pie-sector').first()).toBeVisible()

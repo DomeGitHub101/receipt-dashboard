@@ -7,8 +7,9 @@ The application implements the receipt tracker requirements in the repository's 
 - Register, sign in, sign out, and restore a session after a page refresh.
 - bcrypt password hashing; short-lived JWT access tokens held in memory; rotating JWT refresh tokens in an HttpOnly, SameSite cookie; server-side session revocation.
 - User-isolated categories, transactions, original receipts, summary charts, and exports.
-- Drag-and-drop JPG/PNG/PDF receipts or use a mobile camera. Files are limited to 10 MB, PDFs to 5 pages.
-- Real local Tesseract OCR in English and Thai, with merchant/date/total/item extraction, Buddhist-year conversion, raw OCR text, and an editable review before saving.
+- Drag-and-drop JPG/PNG bank slips or a single-page PDF, or use a mobile camera. Files are limited to 10 MB.
+- Local Thai/English OCR automatically fills the transfer date and outgoing amount. Thai months and Buddhist years are converted to an ISO date for the form, with a Thai date displayed underneath. A focused second pass retries unclear dates.
+- Reference codes are optional; supported slip QR codes can fill them locally. Review fields before saving. Reading a slip or QR does not verify payment with a bank. New scans are expenses; existing manual and receipt entries remain available.
 - Create, edit, and delete income/expense entries; rename, recolor, add, and remove unused categories.
 - Monthly income/expense charts and category breakdown; merchant, category, date, type, and amount filters.
 - CSV and Excel export of the matching transactions, with spreadsheet formula-injection protection.
@@ -53,7 +54,9 @@ If system Tesseract is available, the backend calls it through `pytesseract` usi
 
 Without a system install, the local backend invokes `scripts/ocr.mjs`: the same Tesseract engine runs with WebAssembly and npm-bundled English/Thai language data. Receipt contents stay on your machine; no cloud OCR API is contacted. The first scan caches language data in `backend/.ocr-data`.
 
-For a quick trial, upload `tests/fixtures/receipt.png` or `tests/fixtures/receipt.pdf`. These are synthetic fixtures with a known total of THB 210.00. The parser is heuristic: unclear photos, Thai month names, handwriting, unusual merchant layouts, or multiple totals may need corrections. Always review the extracted fields before saving.
+For a quick trial, upload `tests/fixtures/receipt.png` or `tests/fixtures/receipt.pdf`. These are synthetic bank slips dated 17 September 2026 with an amount of THB 210.00. Run `backend/.venv/Scripts/python.exe scripts/make-test-receipt.py` to regenerate them. Unclear photos, handwriting and other bank layouts may need manual corrections. Fields stay blank when the parser cannot identify a date or transfer amount confidently. Always review before saving.
+
+After pulling schema changes, run `backend/.venv/Scripts/python.exe -m alembic -c backend/alembic.ini upgrade head` and restart the API. Migration 0002 preserves existing transactions while adding the source and optional reference. Duplicate nonempty references are rejected within an account; slips without references can be saved.
 
 ## PostgreSQL + Docker Compose
 

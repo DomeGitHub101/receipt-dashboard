@@ -106,12 +106,11 @@ def parse_receipt(text: str, qr_payloads: list[str] | None = None):
         warnings.append('พบหลายรายการในภาพ กรุณาอัปโหลดสลิปครั้งละหนึ่งรายการ')
     if not parsed_date: warnings.append('อ่านวันที่ไม่ได้ชัดเจน กรุณาระบุวันที่ตามสลิป')
     if amount is None: warnings.append('อ่านจำนวนเงินที่โอนออกไม่ได้ กรุณาตรวจยอดในสลิป')
-    if not reference: warnings.append('อ่านรหัสอ้างอิงไม่ได้ กรุณากรอกรหัสตามสลิป')
     if reference_source == 'ocr': warnings.append('รหัสอ้างอิงอ่านจากข้อความ กรุณาตรวจตัวพิมพ์ใหญ่–เล็กและตัวเลขทุกตัว')
     if reference_source == 'qr' and parsed_date and reference[:8] != parsed_date.replace('-', ''):
-        warnings.append('วันที่ในข้อความไม่ตรงกับส่วนวันที่ของรหัส SCB กรุณาตรวจสลิปอีกครั้ง')
+        warnings.append('วันที่ในข้อความไม่ตรงกับส่วนวันที่ของรหัสอ้างอิง กรุณาตรวจสลิปอีกครั้ง')
     warnings.append('ตรวจข้อมูลก่อนบันทึก การอ่านข้อความหรือ QR ไม่ใช่การยืนยันการโอนจากธนาคาร')
-    return {'merchant': 'SCB transfer' if reference_source == 'qr' or 'SCB' in normalized.upper() else 'Bank transfer',
+    return {'merchant': 'Bank transfer',
             'date': parsed_date, 'amount': str(amount) if amount is not None else None,
             'reference_code': reference, 'reference_source': reference_source,
             'source': 'bank_transfer', 'kind': 'expense', 'line_items': [],

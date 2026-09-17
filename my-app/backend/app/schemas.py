@@ -57,7 +57,6 @@ class TransactionInput(BaseModel):
     def bank_transfer_fields(self):
         if self.source == 'bank_transfer':
             if self.kind != 'expense': raise ValueError('Bank transfer slips must be outgoing expenses.')
-            if not self.reference_code: raise ValueError('Please enter the transfer reference before saving.')
             if self.line_items: raise ValueError('Bank transfer slips do not have receipt line items.')
         return self
 

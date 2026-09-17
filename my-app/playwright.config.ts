@@ -8,7 +8,7 @@ export default defineConfig({
   workers: 1,
   use: {
     actionTimeout: 15_000,
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: process.env.E2E_BASE_URL || 'http://127.0.0.1:5173',
     channel: 'msedge',
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
