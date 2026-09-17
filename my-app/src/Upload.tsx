@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { api } from './api'
 import { Busy, EntryForm, ErrorBox } from './components'
-import { message, today } from './utils'
+import { message } from './utils'
 import type { Category, EntryInput, Scan } from './types'
 
 export default function Upload({
@@ -79,7 +79,7 @@ export default function Upload({
   return (
     <>
       <div className="scan-steps">
-        {['Upload a receipt', 'Review the details', 'All tucked away'].map((step, index) => (
+        {['อัปโหลดสลิป SCB', 'ตรวจข้อมูลการโอน', 'บันทึกเงินออก'].map((step, index) => (
           <div key={step} className={(saved ? 2 : scan ? 1 : 0) >= index ? 'active' : ''}>
             <span>
               {(saved ? 2 : scan ? 1 : 0) > index ? <Check size={16} /> : `0${index + 1}`}
@@ -96,7 +96,7 @@ export default function Upload({
           </span>
           <span className="eyebrow">ONE LESS THING TO REMEMBER</span>
           <h2>All tucked away.</h2>
-          <p>Your receipt and transaction are saved. A little more clarity, just like that.</p>
+          <p>บันทึกวันที่ จำนวนเงินที่โอนออก และรหัสอ้างอิงแล้ว</p>
           <div>
             <button className="button secondary" onClick={reset}>
               <ScanLine size={17} />
@@ -113,8 +113,8 @@ export default function Upload({
           <section className="card upload-card">
             <div className="section-heading">
               <div>
-                <h2>A receipt, a little clarity.</h2>
-                <p>We’ll read it. You give it a quick once-over.</p>
+                <h2>อ่านสลิปโอนเงิน SCB</h2>
+                <p>รองรับสลิปโอนเงิน จ่ายเงิน และเติมเงิน ครั้งละหนึ่งรายการ</p>
               </div>
             </div>
             <input
@@ -122,7 +122,7 @@ export default function Upload({
               type="file"
               accept="image/jpeg,image/png,application/pdf"
               className="sr-only"
-              aria-label="Upload receipt file"
+              aria-label="Upload bank slip file"
               onChange={(e) => process(e.target.files?.[0])}
               disabled={busy}
             />
@@ -143,10 +143,10 @@ export default function Upload({
                   <div className="pdf-preview">
                     <FileImage size={48} />
                     <strong>{file.name}</strong>
-                    <p>PDF receipt · {(file.size / 1024).toFixed(0)} KB</p>
+                    <p>PDF bank slip · {(file.size / 1024).toFixed(0)} KB</p>
                   </div>
                 ) : (
-                  <img src={preview} alt="Your uploaded receipt" />
+                  <img src={preview} alt="สลิปโอนเงินที่อัปโหลด" />
                 )}
                 <div className="preview-footer">
                   <span title={file.name}>{file.name}</span>
@@ -173,13 +173,13 @@ export default function Upload({
                 <span className="upload-icon">
                   <UploadCloud size={32} />
                 </span>
-                <h3>Drop your receipt right here</h3>
-                <p>or choose a file from your device</p>
+                <h3>วางสลิปโอนเงินที่นี่</h3>
+                <p>หรือเลือกรูปสลิปที่บันทึกจาก SCB EASY</p>
                 <button className="button primary" onClick={() => input.current?.click()}>
-                  Choose a receipt
+                  เลือกสลิปโอนเงิน
                   <ArrowRight size={17} />
                 </button>
-                <small>JPG, PNG or PDF · Up to 10 MB · 5 PDF pages</small>
+                <small>JPG, PNG หรือ PDF · สูงสุด 10 MB · PDF 1 หน้า</small>
               </div>
             )}
             <button
@@ -193,9 +193,9 @@ export default function Upload({
             <div className="upload-tip">
               <span className="tip-bulb">✦</span>
               <div>
-                <strong>A little tip for a better scan</strong>
+                <strong>ให้เห็นวันที่ ยอดเงิน และ QR ชัดเจน</strong>
                 <p>
-                  Lay your receipt flat, find good light, and get all four corners in the frame.
+                  ใช้รูปสลิปต้นฉบับ ไม่ตัดขอบ QR เพื่อช่วยอ่านรหัสอ้างอิงให้ตรงทุกตัว
                 </p>
               </div>
             </div>
@@ -207,15 +207,15 @@ export default function Upload({
           <section className="card review-card">
             <div className="section-heading">
               <div>
-                <h2>The little details</h2>
-                <p>Check everything looks right before saving.</p>
+                <h2>ข้อมูลการโอนออก</h2>
+                <p>ตรวจวันที่ จำนวนเงิน และรหัสอ้างอิงก่อนบันทึก</p>
               </div>
               <span className="small-tag">{scan ? 'Ready to review' : 'Awaiting receipt'}</span>
             </div>
             {busy ? (
               <div className="scanning-state">
-                <Busy text="Reading your receipt…" />
-                <p>This can take a moment, especially for multi-page PDFs.</p>
+                <Busy text="กำลังอ่านสลิปและ QR…" />
+                <p>ระบบอ่านข้อความและ QR ภายในเครื่อง</p>
               </div>
             ) : scan ? (
               <>
@@ -228,10 +228,14 @@ export default function Upload({
                   categories={categories}
                   initial={{
                     merchant: scan.merchant,
-                    date: scan.date || today(),
+                    date: scan.date || '',
                     amount: scan.amount ?? '',
                     receipt_id: scan.receipt_id,
                     line_items: scan.line_items,
+                    reference_code: scan.reference_code,
+                    source: 'bank_transfer',
+                    kind: 'expense',
+                    category_id: categories.find(c => c.name === 'Other')?.id || categories[0]?.id || '',
                   }}
                   onSave={save}
                 />
@@ -243,10 +247,9 @@ export default function Upload({
             ) : (
               <div className="review-placeholder">
                 <ScanLine size={45} />
-                <h3>We’ll fill in the blanks.</h3>
+                <h3>ข้อมูลจากสลิปจะปรากฏที่นี่</h3>
                 <p>
-                  Upload a receipt and its merchant, date, total, and available items will appear
-                  here.
+                  วันที่และเดือนปีที่โอน จำนวนเงินที่โอนออก และรหัสอ้างอิง พร้อมแก้ไขก่อนบันทึก
                 </p>
                 <div className="skeleton-field" />
                 <div className="skeleton-field short" />

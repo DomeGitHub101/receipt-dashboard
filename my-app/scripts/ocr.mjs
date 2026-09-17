@@ -14,14 +14,16 @@ for (const lang of ['eng', 'tha']) {
     join(langPath, `${lang}.traineddata.gz`),
   )
 }
-const worker = await createWorker(['eng', 'tha'], 1, {
+const languages = process.argv[3]?.split('+') || ['eng', 'tha']
+const worker = await createWorker(languages, 1, {
   langPath,
   cachePath: langPath,
   logger: () => {},
 })
 try {
-  const { data } = await worker.recognize(process.argv[2])
-  process.stdout.write(data.text)
+  if (process.argv[4]) await worker.setParameters({ tessedit_pageseg_mode: process.argv[4] })
+  const { data } = await worker.recognize(process.argv[2], {}, { text: true, tsv: true })
+  process.stdout.write(JSON.stringify({ text: data.text, tsv: data.tsv }))
 } finally {
   await worker.terminate()
 }

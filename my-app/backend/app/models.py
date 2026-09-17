@@ -50,3 +50,6 @@ class Transaction(Base):
     receipt_id: Mapped[str | None] = mapped_column(ForeignKey('receipts.id'), nullable=True)
     notes: Mapped[str] = mapped_column(String(2000), default='')
     line_items: Mapped[list] = mapped_column(JSON, default=list)
+    source: Mapped[str] = mapped_column(String(20), default='manual', server_default='manual')
+    reference_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    __table_args__ = (UniqueConstraint('user_id', 'reference_code', name='uq_transaction_user_reference'),)

@@ -115,9 +115,12 @@ export function EntryForm({
     receipt_id: null,
     notes: '',
     line_items: [],
+    source: 'manual',
+    reference_code: null,
     ...initial,
   })
   const [busy, setBusy] = useState(false)
+  const isTransfer = form.source === 'bank_transfer'
   const [error, setError] = useState('')
   const update = <K extends keyof EntryInput>(key: K, value: EntryInput[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
@@ -136,7 +139,7 @@ export function EntryForm({
   return (
     <form className="entry-form" onSubmit={submit}>
       <ErrorBox error={error} />
-      <div className="segmented" aria-label="Transaction type">
+      {isTransfer ? <div className="notice">สลิปโอนเงินออก · บันทึกเป็นรายจ่าย</div> : <div className="segmented" aria-label="Transaction type">
         {(['expense', 'income'] as const).map((kind) => (
           <button
             key={kind}
@@ -148,8 +151,8 @@ export function EntryForm({
             {kind === 'expense' ? '↗ Expense' : '↙ Income'}
           </button>
         ))}
-      </div>
-      <label>
+      </div>}
+      {!isTransfer && <label>
         Merchant / description
         <input
           required
@@ -158,10 +161,10 @@ export function EntryForm({
           value={form.merchant}
           onChange={(e) => update('merchant', e.target.value)}
         />
-      </label>
+      </label>}
       <div className="form-grid">
         <label>
-          Amount (THB)
+          {isTransfer ? 'จำนวนเงินที่โอนออก (บาท)' : 'Amount (THB)'}
           <input
             type="number"
             inputMode="decimal"
@@ -175,7 +178,7 @@ export function EntryForm({
           />
         </label>
         <label>
-          Date
+          {isTransfer ? 'วันที่โอน (วัน/เดือน/ปี)' : 'Date'}
           <input
             type="date"
             required
@@ -184,6 +187,12 @@ export function EntryForm({
           />
         </label>
       </div>
+      {isTransfer && <>
+        {form.date && <p className="transfer-date">{new Date(`${form.date}T12:00:00`).toLocaleDateString('th-TH', {day: 'numeric', month: 'long', year: 'numeric'})}</p>}
+        <label>รหัสอ้างอิง
+          <input required minLength={8} maxLength={80} pattern="[A-Za-z0-9]+" autoCapitalize="off" autoCorrect="off" spellCheck={false} placeholder="รหัสอ้างอิงตามสลิป" value={form.reference_code || ''} onChange={e => update('reference_code', e.target.value)} />
+        </label>
+      </>}
       <label>
         Category
         <select
@@ -212,7 +221,7 @@ export function EntryForm({
           onChange={(e) => update('notes', e.target.value)}
         />
       </label>
-      <details className="line-items" open={form.line_items.length > 0}>
+      {!isTransfer && <details className="line-items" open={form.line_items.length > 0}>
         <summary>Line items ({form.line_items.length})</summary>
         {form.line_items.map((item, index) => (
           <div className="line-item" key={index}>
@@ -267,7 +276,7 @@ export function EntryForm({
           <Plus size={15} />
           Add line item
         </button>
-      </details>
+      </details>}
       {form.receipt_id && (
         <button
           type="button"
@@ -281,7 +290,7 @@ export function EntryForm({
           }}
         >
           <Download size={16} />
-          Download original receipt
+          {isTransfer ? 'ดาวน์โหลดสลิปต้นฉบับ' : 'Download original receipt'}
         </button>
       )}
       <div className="form-actions">
@@ -292,7 +301,7 @@ export function EntryForm({
         )}
         <button className="button primary" disabled={busy || !categories.length}>
           {busy ? <LoaderCircle size={17} className="spin" /> : <ArrowUpRight size={17} />}
-          {busy ? 'Saving…' : 'Save transaction'}
+          {busy ? 'Saving…' : isTransfer ? 'บันทึกเงินโอนออก' : 'Save transaction'}
         </button>
       </div>
     </form>

@@ -11,13 +11,19 @@ export type Entry = {
   receipt_id: string | null
   notes: string
   line_items: LineItem[]
+  source: 'manual' | 'receipt' | 'bank_transfer'
+  reference_code: string | null
 }
 export type EntryInput = Omit<Entry, 'id'>
 export type Scan = {
   receipt_id: string
   merchant: string
   date: string | null
-  amount: number | null
+  amount: string | number | null
+  reference_code: string | null
+  reference_source: 'qr' | 'ocr' | null
+  source: 'bank_transfer'
+  kind: 'expense'
   line_items: LineItem[]
   raw_text: string
   warning: string

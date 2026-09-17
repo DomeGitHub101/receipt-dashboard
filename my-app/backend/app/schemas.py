@@ -1,7 +1,7 @@
 from datetime import date as Date
 from decimal import Decimal
 from typing import Literal
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 class Credentials(BaseModel):
     email: EmailStr
@@ -41,6 +41,25 @@ class TransactionInput(BaseModel):
     receipt_id: str | None = None
     notes: str = Field(default='', max_length=2000)
     line_items: list[LineItem] = Field(default_factory=list, max_length=200)
+    source: Literal['manual', 'receipt', 'bank_transfer'] = 'manual'
+    reference_code: str | None = Field(default=None, max_length=80)
+
+    @field_validator('reference_code')
+    @classmethod
+    def clean_reference(cls, value):
+        if value is None or not value.strip(): return None
+        value = value.strip()
+        if not value.isascii() or not value.isalnum() or len(value) < 8:
+            raise ValueError('Reference must contain 8–80 letters and digits (case-sensitive).')
+        return value
+
+    @model_validator(mode='after')
+    def bank_transfer_fields(self):
+        if self.source == 'bank_transfer':
+            if self.kind != 'expense': raise ValueError('Bank transfer slips must be outgoing expenses.')
+            if not self.reference_code: raise ValueError('Please enter the transfer reference before saving.')
+            if self.line_items: raise ValueError('Bank transfer slips do not have receipt line items.')
+        return self
 
     @field_validator('merchant')
     @classmethod

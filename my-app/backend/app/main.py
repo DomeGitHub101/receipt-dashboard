@@ -10,7 +10,7 @@ from fastapi import FastAPI, Depends, HTTPException, Request, Response, UploadFi
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from starlette.concurrency import run_in_threadpool
-from sqlalchemy import select, delete, func
+from sqlalchemy import select, delete, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from openpyxl import Workbook
@@ -128,7 +128,7 @@ def filters(query, user, start=None, end=None, category_id=None, merchant=None, 
     if start: query = query.where(Transaction.date >= start)
     if end: query = query.where(Transaction.date <= end)
     if category_id: query = query.where(Transaction.category_id == category_id)
-    if merchant: query = query.where(Transaction.merchant.icontains(merchant, autoescape=True))
+    if merchant: query = query.where(or_(Transaction.merchant.icontains(merchant, autoescape=True), Transaction.reference_code.icontains(merchant, autoescape=True)))
     if minimum is not None: query = query.where(Transaction.amount >= minimum)
     if maximum is not None: query = query.where(Transaction.amount <= maximum)
     if kind: query = query.where(Transaction.kind == kind)
@@ -154,7 +154,11 @@ async def validate_transaction(data, user, db):
 async def add_transaction(data: TransactionInput, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
     row = Transaction(user_id=user.id, **await validate_transaction(data, user, db))
     db.add(row)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(409, 'รหัสอ้างอิงนี้ถูกบันทึกแล้ว กรุณาตรวจรายการเดิมก่อนบันทึกซ้ำ')
     return row
 
 @app.put('/api/transactions/{transaction_id}')
@@ -162,7 +166,11 @@ async def edit_transaction(transaction_id: str, data: TransactionInput, user: Us
     row = await owned(db, Transaction, transaction_id, user)
     for key, value in (await validate_transaction(data, user, db)).items():
         setattr(row, key, value)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(409, 'รหัสอ้างอิงนี้ถูกบันทึกแล้ว กรุณาตรวจรายการเดิมก่อนบันทึกซ้ำ')
     return row
 
 @app.delete('/api/transactions/{transaction_id}', status_code=204)
@@ -185,17 +193,18 @@ async def upload(file: UploadFile = File(...), user: User = Depends(current_user
     path = settings.upload_dir / storage_name
     path.write_bytes(data)
     try:
-        text = await run_in_threadpool(read_receipt, path, suffix == '.pdf')
+        result = await run_in_threadpool(read_receipt, path, suffix == '.pdf')
     except ValueError as error:
         path.unlink(missing_ok=True)
         raise HTTPException(422, str(error))
     except Exception:
         path.unlink(missing_ok=True)
         raise HTTPException(503, 'OCR could not finish. Try a clearer image or add this transaction manually.')
-    row = Receipt(user_id=user.id, filename=(file.filename or 'receipt')[:255], storage_name=storage_name, content_type=mime, raw_text=text)
+    text = result['text']
+    row = Receipt(user_id=user.id, filename=(file.filename or 'bank-slip')[:255], storage_name=storage_name, content_type=mime, raw_text=text)
     db.add(row)
     await db.commit()
-    return {'receipt_id': row.id, **parse_receipt(text)}
+    return {'receipt_id': row.id, **parse_receipt(text, result['qr_payloads'])}
 
 @app.get('/api/receipts/{receipt_id}/file')
 async def receipt_file(receipt_id: str, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
@@ -234,8 +243,8 @@ async def export(format: str, start: date | None = None, end: date | None = None
     cats = {c.id: c.name for c in (await db.scalars(select(Category).where(Category.user_id == user.id))).all()}
     def safe(value):
         return "'" + value if isinstance(value, str) and value.lstrip().startswith(('=', '+', '-', '@', '\t', '\r')) else value
-    data = [['Date', 'Merchant', 'Type', 'Category', 'Amount (THB)', 'Notes']]
-    data.extend([[r.date.isoformat(), safe(r.merchant), r.kind, safe(cats[r.category_id]), float(r.amount), safe(r.notes)] for r in rows])
+    data = [['Date', 'Description', 'Type', 'Category', 'Amount (THB)', 'Notes', 'Reference code']]
+    data.extend([[r.date.isoformat(), safe(r.merchant), r.kind, safe(cats[r.category_id]), float(r.amount), safe(r.notes), safe(r.reference_code or '')] for r in rows])
     if format == 'csv':
         stream = io.StringIO(newline='')
         csv.writer(stream).writerows(data)
@@ -247,7 +256,8 @@ async def export(format: str, start: date | None = None, end: date | None = None
         for row in data: sheet.append(row)
         sheet.freeze_panes = 'A2'
         sheet.auto_filter.ref = sheet.dimensions
-        for column in ['A', 'B', 'C', 'D', 'E', 'F']: sheet.column_dimensions[column].width = 25
+        for column in ['A', 'B', 'C', 'D', 'E', 'F', 'G']: sheet.column_dimensions[column].width = 25
+        sheet.column_dimensions['G'].width = 38
         for cell in sheet['E'][1:]: cell.number_format = '#,##0.00'
         stream = io.BytesIO()
         book.save(stream)
