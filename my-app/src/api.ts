@@ -1,6 +1,18 @@
 import type { User } from './types'
 
 let token: string | null = null
+export function acceptSession(session: { access_token: string }) {
+  token = session.access_token
+}
+export function clearSession() {
+  token = null
+  window.dispatchEvent(new Event('session-expired'))
+}
+export async function publicApi<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`/api${path}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  if (!response.ok) throw new Error(await errorMessage(response))
+  return response.json()
+}
 let refreshPromise: Promise<{ user: User; access_token: string }> | null = null
 
 async function errorMessage(response: Response) {
@@ -30,7 +42,7 @@ export async function restoreSession() {
 
 export async function signIn(
   mode: 'login' | 'register',
-  data: { email: string; password: string; name?: string },
+  data: { email: string; password: string; name?: string; code?: string },
 ) {
   const response = await fetch(`/api/auth/${mode}`, {
     method: 'POST',
@@ -79,8 +91,8 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   return response.status === 204 ? (undefined as T) : response.json()
 }
 
-export async function download(path: string, filename?: string) {
-  const response = await request(path)
+export async function download(path: string, filename?: string, options?: RequestInit) {
+  const response = await request(path, options)
   const url = URL.createObjectURL(await response.blob())
   const a = document.createElement('a')
   a.href = url

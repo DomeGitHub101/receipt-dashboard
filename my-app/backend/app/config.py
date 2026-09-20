@@ -17,6 +17,15 @@ class Settings(BaseSettings):
     upload_dir: Path = ROOT / 'uploads'
     ocr_languages: str = 'eng+tha'
     tesseract_cmd: str = ''
+    smtp_host: str = ''
+    smtp_port: int = 587
+    smtp_username: str = ''
+    smtp_password: str = ''
+    smtp_from: str = ''
+    smtp_starttls: bool = True
+    smtp_ssl: bool = False
+    public_url: str = 'http://localhost:5173'
+    require_verified_email: bool = False
 
 
 settings = Settings()

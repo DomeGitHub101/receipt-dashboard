@@ -37,3 +37,18 @@ export type Summary = {
   categories: { name: string; color: string; amount: number }[]
   daily: { day: number; income: number; expense: number }[]
 }
+export type BudgetCategory = {
+  category_id: string
+  name: string
+  color: string
+  amount: number
+  spent: number
+  remaining: number
+}
+export type Budget = {
+  month: string
+  amount: number
+  spent: number
+  remaining: number
+  categories: BudgetCategory[]
+}

@@ -10,7 +10,7 @@ import {
   Leaf,
   LoaderCircle,
 } from 'lucide-react'
-import { signIn } from './api'
+import { signIn, publicApi } from './api'
 import { Brand, ErrorBox } from './components'
 import { message } from './utils'
 import type { User } from './types'
@@ -20,6 +20,19 @@ export default function Auth({ onAuth }: { onAuth: (user: User) => void }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [visible, setVisible] = useState(false)
+  const [notice, setNotice] = useState('')
+  const [emailAction, setEmailAction] = useState<'forgot-password' | 'request-verification' | null>(null)
+  async function sendLink(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      const data = new FormData(e.currentTarget)
+      const result = await publicApi<{ message: string }>(`/auth/${emailAction}`, { email: data.get('email') })
+      setNotice(result.message)
+    } catch (e) { setError(message(e)) } finally { setBusy(false) }
+  }
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
@@ -31,6 +44,7 @@ export default function Auth({ onAuth }: { onAuth: (user: User) => void }) {
           email: String(data.get('email')),
           password: String(data.get('password')),
           name: String(data.get('name') || ''),
+          code: String(data.get('code') || ''),
         }),
       )
     } catch (e) {
@@ -99,12 +113,23 @@ export default function Auth({ onAuth }: { onAuth: (user: User) => void }) {
                 </button>
               </div>
             </label>
+            {mode === 'login' && <label>Authenticator / recovery code (if enabled)<input name="code" autoComplete="one-time-code" maxLength={80} placeholder="Leave blank if 2FA is off" /></label>}
             <button disabled={busy} className="button primary auth-submit">
               {busy ? <LoaderCircle size={18} className="spin" /> : null}
               {busy ? 'Just a moment…' : mode === 'login' ? 'Sign in' : 'Create account'}
               <ArrowRight size={18} />
             </button>
           </form>
+          <div className="security-link-actions">
+            <button className="text-button" onClick={() => { setEmailAction('forgot-password'); setNotice(''); setError('') }}>Forgot password?</button>
+            <button className="text-button" onClick={() => { setEmailAction('request-verification'); setNotice(''); setError('') }}>Verify email</button>
+          </div>
+          {emailAction && <form className="auth-form email-link-form" onSubmit={sendLink}>
+            <h3>{emailAction === 'forgot-password' ? 'Reset your password' : 'Request email verification'}</h3>
+            <label>Account email<input name="email" type="email" required autoComplete="email" /></label>
+            <button className="button secondary" disabled={busy}>Send email link</button>
+            {notice && <p role="status">{notice}</p>}
+          </form>}
           <p className="auth-switch">
             {mode === 'login' ? 'New around here?' : 'Already have an account?'}{' '}
             <button

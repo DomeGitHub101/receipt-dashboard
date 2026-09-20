@@ -34,6 +34,8 @@ async def current_user(auth: HTTPAuthorizationCredentials | None = Depends(beare
     user = await db.get(User, claims['sub'])
     if not session or not user or session.user_id != user.id or session.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
         raise HTTPException(401, 'Session expired. Please sign in again.')
+    if settings.require_verified_email and not user.email_verified:
+        raise HTTPException(403, 'Verify your email before continuing.')
     return user
 
 def check_origin(request: Request):
@@ -42,6 +44,8 @@ def check_origin(request: Request):
         raise HTTPException(403, 'Untrusted origin')
 
 async def issue_session(user, db, response):
+    if settings.require_verified_email and not user.email_verified:
+        raise HTTPException(403, 'Verify your email before signing in.')
     sid = str(uuid4())
     lifetime = timedelta(days=settings.refresh_token_expire_days)
     db.add(RefreshSession(id=sid, user_id=user.id, expires_at=(datetime.now(timezone.utc) + lifetime).replace(tzinfo=None)))

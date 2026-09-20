@@ -123,6 +123,31 @@ def test_categories_and_receipt_access(client, monkeypatch):
     assert client.get(f'/api/receipts/{receipt["receipt_id"]}/file', headers=second).status_code == 404
     assert transaction(client, second, receipt_id=receipt['receipt_id']).status_code == 404
 
+def test_monthly_budgets(client):
+    first = register(client)
+    categories = client.get('/api/categories', headers=first).json()
+    food = categories[0]
+    assert transaction(client, first, category_id=food['id'], amount='250').status_code == 201
+    empty = client.get('/api/budgets/2026-09', headers=first)
+    assert empty.status_code == 200
+    assert float(empty.json()['spent']) == 250
+    saved = client.put('/api/budgets/2026-09', headers=first, json={
+        'amount': '1000', 'categories': [{'category_id': food['id'], 'amount': '300'}]
+    })
+    assert saved.status_code == 200, saved.text
+    data = saved.json()
+    assert float(data['remaining']) == 750
+    category = next(item for item in data['categories'] if item['category_id'] == food['id'])
+    assert float(category['remaining']) == 50
+    assert client.put('/api/budgets/2026-09', headers=first, json={'amount': '-1'}).status_code == 422
+    assert client.put('/api/budgets/2026-13', headers=first, json={'amount': '1'}).status_code == 422
+    second = register(client, 'budget-other@example.com')
+    assert client.put('/api/budgets/2026-09', headers=second, json={
+        'amount': '100', 'categories': [{'category_id': food['id'], 'amount': '50'}]
+    }).status_code == 404
+    assert float(client.get('/api/budgets/2026-09', headers=second).json()['amount']) == 0
+    assert client.delete(f"/api/categories/{food['id']}", headers=first).status_code == 409
+
 @pytest.mark.parametrize('text,amount,expected_date', [
     ('17 ก.ย. 2569\nจำนวนเงิน\n50.00\nค่าธรรมเนียม 0.00', '50.00', '2026-09-17'),
     ('15 ก . ุ ย . 2569 - 07:04\nจ ํ า น ว น เง ิ น\n150.00', '150.00', '2026-09-15'),

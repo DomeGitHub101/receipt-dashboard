@@ -28,6 +28,7 @@ export default function Upload({
   const [error, setError] = useState('')
   const [dragging, setDragging] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [revealPreview, setRevealPreview] = useState(false)
   const input = useRef<HTMLInputElement>(null)
   const camera = useRef<HTMLInputElement>(null)
   useEffect(() => {
@@ -53,6 +54,7 @@ export default function Upload({
       return
     }
     setFile(selected)
+    setRevealPreview(false)
     setBusy(true)
     const data = new FormData()
     data.append('file', selected)
@@ -66,6 +68,7 @@ export default function Upload({
   }
   function reset() {
     setFile(null)
+    setRevealPreview(false)
     setScan(null)
     setSaved(false)
     setError('')
@@ -139,7 +142,9 @@ export default function Upload({
             <ErrorBox error={error} />
             {file ? (
               <div className="receipt-preview">
-                {file.type === 'application/pdf' ? (
+                {!revealPreview ? (
+                  <div className="private-preview"><ShieldCheck size={38} /><strong>Slip preview hidden</strong><p>Names, account numbers and QR codes are hidden on this screen.</p><button type="button" className="button secondary" onClick={() => setRevealPreview(true)}>Show original preview</button></div>
+                ) : file.type === 'application/pdf' ? (
                   <div className="pdf-preview">
                     <FileImage size={48} />
                     <strong>{file.name}</strong>
@@ -149,7 +154,8 @@ export default function Upload({
                   <img src={preview} alt="สลิปโอนเงินที่อัปโหลด" />
                 )}
                 <div className="preview-footer">
-                  <span title={file.name}>{file.name}</span>
+                  <span>{revealPreview ? file.name : 'Private slip'}</span>
+                  {revealPreview && <button type="button" className="text-button" onClick={() => setRevealPreview(false)}>Hide preview</button>}
                   <button disabled={busy} className="text-button" onClick={reset}>
                     <RotateCcw size={15} />
                     Start over

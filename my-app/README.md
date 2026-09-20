@@ -7,6 +7,7 @@ The application implements the receipt tracker requirements in the repository's 
 - Register, sign in, sign out, and restore a session after a page refresh.
 - bcrypt password hashing; short-lived JWT access tokens held in memory; rotating JWT refresh tokens in an HttpOnly, SameSite cookie; server-side session revocation.
 - User-isolated categories, transactions, original receipts, summary charts, and exports.
+- Monthly spending budgets with an overall limit, optional per-category limits, live progress, remaining amounts, and over-budget states.
 - Drag-and-drop JPG/PNG bank slips or a single-page PDF, or use a mobile camera. Files are limited to 10 MB.
 - Local Thai/English OCR automatically fills the transfer date and outgoing amount. Thai months and Buddhist years are converted to an ISO date for the form, with a Thai date displayed underneath. A focused second pass retries unclear dates.
 - Reference codes are optional; supported slip QR codes can fill them locally. Review fields before saving. Reading a slip or QR does not verify payment with a bank. New scans are expenses; existing manual and receipt entries remain available.
@@ -85,7 +86,25 @@ See `backend/.env.example` and `.env.example`. Environment variables override lo
 
 Compose is a local development configuration. For production, serve the built `dist/` with a web server, route `/api` to FastAPI under the same origin, set a persistent random `SECRET_KEY`, set `COOKIE_SECURE=true` behind HTTPS, and set `ALLOWED_ORIGIN` to the actual frontend origin. Bind all services privately behind the web server. Back up both database and receipt files.
 
-Current storage is local disk or a Docker volume. S3/MinIO, optional Google Cloud Vision, email verification/password recovery, distributed request throttling, and hosting on Vercel/Render/Railway are not configured. No deployment or external accounts were created.
+Current storage is local disk or a Docker volume. S3/MinIO, optional Google Cloud Vision, and hosting on Vercel/Render/Railway are not configured. No deployment or external accounts were created.
+
+## Account security and personal backups
+
+Open **Settings** to change your password, verify your email, configure authenticator-based 2FA, download a backup, restore financial data, or permanently delete your account. Apply migration `0004` and restart the API after updating. Install the updated `backend/requirements.txt` first.
+
+- Password changes and resets revoke all existing sessions. A password change keeps only the new current session. Reset links expire after 30 minutes, are stored as hashes and can only be used once. Forgot-password and verification requests give the same response for unknown and known addresses.
+- Verification links expire after 24 hours. Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and `PUBLIC_URL` in `backend/.env` to deliver email. Port 587 uses `SMTP_STARTTLS=true`; for implicit TLS on port 465 set `SMTP_SSL=true`. No reset or verification tokens are returned to the browser or printed to logs. Without SMTP, the UI explains that email delivery is unavailable. Mail is sent by an in-process background task; a server interruption may require requesting a new link.
+- Set `REQUIRE_VERIFIED_EMAIL=true` after configuring SMTP when opening registration to the public. Existing unverified accounts must then verify too. Use HTTPS, `COOKIE_SECURE=true`, a persistent random `SECRET_KEY`, and the correct HTTPS `PUBLIC_URL` and allowed origin. This development setup is not a completed public deployment.
+- 2FA supports time-based authenticator apps using a manual setup key. Confirm a code to enable it. Ten one-use recovery codes are shown once; save them outside the app. Password reset does **not** bypass 2FA. Enabling or disabling 2FA revokes old sessions. Authenticator secrets are encrypted with a key derived from `SECRET_KEY`; preserve that key with server backups. Changing or losing it makes existing authenticator secrets unreadable. Personal ZIP exports deliberately exclude credentials and 2FA secrets.
+- Authentication and sensitive actions have persistent database rate limits, shared by app workers. Apply appropriate reverse-proxy limits as well for a public deployment; the API uses the connecting client address, so only trusted proxies should supply forwarded addresses.
+- **Download all data** produces a ZIP containing profile metadata, financial records, categories, budgets, OCR text, and original receipt files. The archive is not encrypted; keep it private. Personal backups are limited to 50 MB uncompressed and 5,000 receipts. Larger accounts need an administrator-operated database and upload-directory backup. This is an on-demand personal backup, not an automated server backup schedule.
+- **Restore backup** validates the entire archive before replacing financial records in the signed-in account. It requires your password, 2FA if enabled, and typing `RESTORE`. IDs are regenerated; credentials and security settings are retained. Always download a current backup first. Restoring another person's archive imports its financial data into your own account, not their identity.
+- **Delete account** requires your password, 2FA if enabled, and typing `DELETE`. It removes account data and stored receipt originals. If filesystem cleanup fails, the UI explicitly reports that administrator cleanup is still needed. Previously downloaded files and administrator backups cannot be removed remotely by this action.
+- Slip previews are hidden by default, including the filename. **Show original preview** reveals the original image, and **Hide preview** conceals it again. This is screen privacy, not permanent redaction: original files and OCR text remain available to the account owner and are included in backups.
+
+The implementation follows the [OWASP password-reset guidance](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html) and [MFA guidance](https://cheatsheetseries.owasp.org/cheatsheets/Multifactor_Authentication_Cheat_Sheet.html) for single-use recovery tokens, session invalidation and recovery codes.
+
+Security API tests run with `backend/.venv/Scripts/python.exe -m pytest backend/tests -q` when `PYTHONPATH=backend`, or run `.venv/Scripts/python.exe -m pytest tests -q` from `backend`. `tests/security.spec.ts` covers Settings on desktop and mobile. Run browser tests against an isolated database and upload directory using `E2E_BASE_URL`; these tests create and delete their own test accounts.
 
 ## Checks
 

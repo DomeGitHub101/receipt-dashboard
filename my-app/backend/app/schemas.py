@@ -6,6 +6,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator, model_validato
 class Credentials(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=72)
+    code: str = Field(default='', max_length=80)
 
     @field_validator('password')
     @classmethod
@@ -31,6 +32,21 @@ class CategoryInput(BaseModel):
 class LineItem(BaseModel):
     name: str = Field(max_length=200)
     amount: Decimal = Field(ge=0, max_digits=14, decimal_places=2)
+
+class CategoryBudgetInput(BaseModel):
+    category_id: str
+    amount: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
+
+class BudgetInput(BaseModel):
+    amount: Decimal = Field(ge=0, max_digits=14, decimal_places=2)
+    categories: list[CategoryBudgetInput] = Field(default_factory=list, max_length=200)
+
+    @model_validator(mode='after')
+    def unique_categories(self):
+        ids = [item.category_id for item in self.categories]
+        if len(ids) != len(set(ids)):
+            raise ValueError('Each category can only have one budget.')
+        return self
 
 class TransactionInput(BaseModel):
     merchant: str = Field(min_length=1, max_length=160)

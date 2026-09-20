@@ -16,13 +16,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from openpyxl import Workbook
 from .config import settings
 from .db import get_db
-from .models import User, Category, Transaction, Receipt, RefreshSession
-from .schemas import Register, Credentials, CategoryInput, TransactionInput
+from .models import User, Category, Transaction, Receipt, RefreshSession, MonthlyBudget, CategoryBudget
+from .schemas import Register, Credentials, CategoryInput, TransactionInput, BudgetInput
 from .security import current_user, issue_session, decode, check_origin
 from .ocr import read_receipt
 from .parser import parse_receipt
+from .account_security import throttle, verify_password, verify_factor
+from .account import router as account_router
+from .account_data import router as account_data_router
 
 app = FastAPI(title='SlipSnap API', version='1.0.0')
+app.include_router(account_router)
+app.include_router(account_data_router)
+
+@app.middleware('http')
+async def privacy_headers(request, call_next):
+    response = await call_next(request)
+    response.headers['Cache-Control'] = 'no-store'
+    response.headers['Referrer-Policy'] = 'no-referrer'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
 app.add_middleware(CORSMiddleware, allow_origins=[settings.allowed_origin, 'http://127.0.0.1:5173', *settings.additional_origins],
                    allow_credentials=True, allow_methods=['GET', 'POST', 'PUT', 'DELETE'], allow_headers=['Authorization', 'Content-Type'])
 DEFAULTS = [('Food & drinks', '#00704a'), ('Transport', '#c79254'), ('Shopping', '#8ba99a'),
@@ -33,7 +46,8 @@ async def health():
     return {'status': 'ok'}
 
 @app.post('/api/auth/register', status_code=201)
-async def register(data: Register, response: Response, db: AsyncSession = Depends(get_db)):
+async def register(data: Register, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+    await throttle(db, 'register:' + request.client.host, 20)
     user = User(email=str(data.email).lower(), name=data.name.strip() or 'Friend',
                 password_hash=(await run_in_threadpool(bcrypt.hashpw, data.password.encode(), bcrypt.gensalt())).decode())
     db.add(user)
@@ -44,16 +58,19 @@ async def register(data: Register, response: Response, db: AsyncSession = Depend
     except IntegrityError:
         await db.rollback()
         raise HTTPException(409, 'An account with this email already exists.')
+    if settings.require_verified_email:
+        raise HTTPException(403, 'Account created. Request a verification link below before signing in.')
     return await issue_session(user, db, response)
 
 @app.post('/api/auth/login')
-async def login(data: Credentials, response: Response, db: AsyncSession = Depends(get_db)):
+async def login(data: Credentials, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+    await throttle(db, 'login-ip:' + request.client.host, 50)
+    await throttle(db, 'login-email:' + str(data.email).lower(), 10)
     user = await db.scalar(select(User).where(User.email == str(data.email).lower()))
-    # Always perform bcrypt verification, including unknown email addresses.
-    hashed = user.password_hash.encode() if user else b'$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMKuFM6DtdROCe.Wkt/H8W8a8W'
-    valid = await run_in_threadpool(bcrypt.checkpw, data.password.encode(), hashed)
-    if not user or not valid:
-        raise HTTPException(401, 'Email or password is incorrect.')
+    await verify_password(user, data.password)
+    await verify_factor(db, user, data.code)
+    if settings.require_verified_email and not user.email_verified:
+        raise HTTPException(403, 'Verify your email before signing in. Use the verification link option on this page.')
     return await issue_session(user, db, response)
 
 @app.post('/api/auth/refresh', dependencies=[Depends(check_origin)])
@@ -120,8 +137,66 @@ async def remove_category(category_id: str, user: User = Depends(current_user), 
     category = await owned(db, Category, category_id, user)
     if await db.scalar(select(func.count()).select_from(Transaction).where(Transaction.category_id == category_id)):
         raise HTTPException(409, 'Move transactions to another category before deleting this one.')
+    if await db.scalar(select(func.count()).select_from(CategoryBudget).where(CategoryBudget.category_id == category_id)):
+        raise HTTPException(409, 'Remove this category from your budgets before deleting it.')
     await db.delete(category)
     await db.commit()
+
+def month_range(month: str):
+    try:
+        first = date.fromisoformat(month + '-01')
+    except ValueError:
+        raise HTTPException(422, 'Invalid month.')
+    return first, first.replace(day=calendar.monthrange(first.year, first.month)[1])
+
+async def budget_response(month, user, db):
+    first, end = month_range(month)
+    budget = await db.scalar(select(MonthlyBudget).where(MonthlyBudget.user_id == user.id, MonthlyBudget.month == month))
+    categories = (await db.scalars(select(Category).where(Category.user_id == user.id).order_by(Category.name))).all()
+    spent_rows = (await db.execute(
+        select(Transaction.category_id, func.coalesce(func.sum(Transaction.amount), 0))
+        .where(Transaction.user_id == user.id, Transaction.kind == 'expense', Transaction.date >= first, Transaction.date <= end)
+        .group_by(Transaction.category_id)
+    )).all()
+    spent = {category_id: amount for category_id, amount in spent_rows}
+    allocations = {}
+    if budget:
+        allocations = {row.category_id: row.amount for row in (await db.scalars(
+            select(CategoryBudget).where(CategoryBudget.monthly_budget_id == budget.id)
+        )).all()}
+    total_spent = sum(spent.values(), Decimal(0))
+    amount = budget.amount if budget else Decimal(0)
+    return {
+        'month': month, 'amount': amount, 'spent': total_spent, 'remaining': amount - total_spent,
+        'categories': [
+            {'category_id': category.id, 'name': category.name, 'color': category.color,
+             'amount': allocations.get(category.id, Decimal(0)), 'spent': spent.get(category.id, Decimal(0)),
+             'remaining': allocations.get(category.id, Decimal(0)) - spent.get(category.id, Decimal(0))}
+            for category in categories
+        ],
+    }
+
+@app.get('/api/budgets/{month}')
+async def get_budget(month: str, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
+    return await budget_response(month, user, db)
+
+@app.put('/api/budgets/{month}')
+async def save_budget(month: str, data: BudgetInput, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
+    month_range(month)
+    owned_categories = set((await db.scalars(select(Category.id).where(Category.user_id == user.id))).all())
+    if any(item.category_id not in owned_categories for item in data.categories):
+        raise HTTPException(404, 'Category not found.')
+    budget = await db.scalar(select(MonthlyBudget).where(MonthlyBudget.user_id == user.id, MonthlyBudget.month == month))
+    if not budget:
+        budget = MonthlyBudget(user_id=user.id, month=month, amount=data.amount)
+        db.add(budget)
+        await db.flush()
+    else:
+        budget.amount = data.amount
+        await db.execute(delete(CategoryBudget).where(CategoryBudget.monthly_budget_id == budget.id))
+    db.add_all([CategoryBudget(monthly_budget_id=budget.id, category_id=item.category_id, amount=item.amount) for item in data.categories])
+    await db.commit()
+    return await budget_response(month, user, db)
 
 def filters(query, user, start=None, end=None, category_id=None, merchant=None, minimum=None, maximum=None, kind=None):
     query = query.where(Transaction.user_id == user.id)
@@ -214,11 +289,7 @@ async def receipt_file(receipt_id: str, user: User = Depends(current_user), db: 
 
 @app.get('/api/dashboard/summary')
 async def summary(month: str = Query(pattern=r'^\d{4}-\d{2}$'), user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
-    try:
-        first = date.fromisoformat(month + '-01')
-    except ValueError:
-        raise HTTPException(422, 'Invalid month.')
-    end = first.replace(day=calendar.monthrange(first.year, first.month)[1])
+    first, end = month_range(month)
     rows = (await db.scalars(filters(select(Transaction), user, first, end))).all()
     income = sum((r.amount for r in rows if r.kind == 'income'), Decimal(0))
     expense = sum((r.amount for r in rows if r.kind == 'expense'), Decimal(0))

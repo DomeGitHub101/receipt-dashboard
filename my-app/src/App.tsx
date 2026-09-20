@@ -12,6 +12,8 @@ import {
   Leaf,
   CheckCircle2,
   Trash2,
+  PiggyBank,
+  Settings as SettingsIcon,
 } from 'lucide-react'
 import { api, restoreSession, signOut } from './api'
 import type { Category, Entry, EntryInput, Summary, User } from './types'
@@ -22,17 +24,30 @@ const Dashboard = lazy(() => import('./Dashboard'))
 import Transactions from './Transactions'
 import Upload from './Upload'
 import Categories from './Categories'
+import Budgets from './Budgets'
+import Settings from './Settings'
+import EmailAction from './EmailAction'
 import './App.css'
 
-type Page = 'overview' | 'transactions' | 'upload' | 'categories'
+type Page = 'overview' | 'transactions' | 'upload' | 'budgets' | 'categories' | 'settings'
 const navigation = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'transactions', label: 'Transactions', icon: ArrowLeftRight },
   { id: 'upload', label: 'Scan receipt', icon: ScanLine },
+  { id: 'budgets', label: 'Budgets', icon: PiggyBank },
   { id: 'categories', label: 'Categories', icon: Tags },
+  { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ] as const
 
 export default function App() {
+  const [emailAction, setEmailAction] = useState(() => {
+    const params = new URLSearchParams(window.location.hash.slice(1))
+    const action = params.has('reset') ? 'reset' : params.has('verify') ? 'verify' : null
+    return action ? { action: action as 'reset' | 'verify', token: params.get(action)! } : null
+  })
+  useEffect(() => {
+    if (emailAction) window.history.replaceState(null, '', window.location.pathname + window.location.search)
+  }, [emailAction])
   const [user, setUser] = useState<User | null>(null)
   const [booting, setBooting] = useState(true)
   const [page, setPage] = useState<Page>('overview')
@@ -59,6 +74,7 @@ export default function App() {
         if (active) setBooting(false)
       })
     const expired = () => {
+      setMobileNav(false)
       setUser(null)
       setEditing(null)
       setSummary(null)
@@ -142,6 +158,7 @@ export default function App() {
     setBusy(true)
     try {
       await signOut()
+      setMobileNav(false)
       setUser(null)
       setSummary(null)
       setEntries([])
@@ -155,6 +172,7 @@ export default function App() {
       setBusy(false)
     }
   }
+  if (emailAction) return <EmailAction {...emailAction} onDone={() => setEmailAction(null)} />
   if (booting)
     return (
       <div className="boot-screen">
@@ -166,6 +184,7 @@ export default function App() {
     return (
       <Auth
         onAuth={(u) => {
+          setMobileNav(false)
           setUser(u)
           setPage('overview')
           setRevision((r) => r + 1)
@@ -176,12 +195,16 @@ export default function App() {
     overview: `A little clarity, ${user.name.split(' ')[0]}.`,
     transactions: 'Your money, in moments.',
     upload: 'Less paper. More perspective.',
+    budgets: 'Give every baht a little direction.',
+    settings: 'Your account. Your peace of mind.',
     categories: 'Organized, your way.',
   }
   const subtitles = {
     overview: 'Here’s how your month is shaping up.',
     transactions: 'Every income, every expense, all in one place.',
     upload: 'Turn that receipt into something useful.',
+    budgets: 'Set a plan, follow your progress, and adjust as life happens.',
+    settings: 'Security, privacy, and a safe copy of your data.',
     categories: 'Little groups that make the big picture clearer.',
   }
   return (
@@ -284,7 +307,7 @@ export default function App() {
               <p>{subtitles[page]}</p>
             </div>
             <div className="heading-actions">
-              {page === 'overview' && (
+              {(page === 'overview' || page === 'budgets') && (
                 <label className="month-picker">
                   <span className="sr-only">Dashboard month</span>
                   <input
@@ -357,6 +380,17 @@ export default function App() {
               notify={setToast}
             />
           )}
+          {page === 'budgets' && (
+            <Budgets
+              month={month}
+              revision={revision}
+              onSaved={() => {
+                setRevision((r) => r + 1)
+                setToast('Budget saved for this month.')
+              }}
+            />
+          )}
+          {page === 'settings' && <Settings onRestored={() => setRevision((r) => r + 1)} />}
         </main>
         <footer className="app-footer">
           <span>

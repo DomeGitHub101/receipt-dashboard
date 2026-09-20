@@ -16,3 +16,5 @@ pypdfium2>=4.30,<6
 openpyxl>=3.1,<4
 httpx>=0.28,<1
 pytest>=8,<10
+cryptography>=44,<48
+pyotp>=2.9,<3
