@@ -18,6 +18,8 @@ export type EntryInput = Omit<Entry, 'id'>
 export type Scan = {
   receipt_id: string
   merchant: string
+  /** Sending bank or app detected from the slip QR or text, e.g. "KBank (MAKE)". */
+  bank: string | null
   date: string | null
   amount: string | number | null
   reference_code: string | null

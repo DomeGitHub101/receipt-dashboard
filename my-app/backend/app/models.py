@@ -19,6 +19,8 @@ class User(Base):
     totp_pending: Mapped[str | None] = mapped_column(String(300), nullable=True)
     totp_pending_expires: Mapped[datetime | None] = mapped_column(nullable=True)
     totp_last_step: Mapped[int] = mapped_column(Integer, default=-1, server_default='-1')
+    google_sub: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+    has_password: Mapped[bool] = mapped_column(Boolean, default=True, server_default='1')
 
 class ActionToken(Base):
     __tablename__ = 'action_tokens'

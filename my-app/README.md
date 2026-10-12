@@ -88,6 +88,14 @@ Compose is a local development configuration. For production, serve the built `d
 
 Current storage is local disk or a Docker volume. S3/MinIO, optional Google Cloud Vision, and hosting on Vercel/Render/Railway are not configured. No deployment or external accounts were created.
 
+## Sign in with Google
+
+Set `GOOGLE_CLIENT_ID` in `backend/.env`, run migration `0005`, and restart the API. Create the client in Google Cloud Console → APIs & Services → Credentials → OAuth client ID → Web application, and add `http://localhost:5173` and `http://127.0.0.1:5173` (plus any HTTPS production origin) as Authorized JavaScript origins. No client secret is needed: the browser receives a Google ID token, and the API verifies its signature, audience, and verified email.
+
+- A new Google user gets a password-less account. They confirm sensitive Settings actions by signing in with Google again (valid for 10 minutes), and they can add a password later.
+- Signing in with Google to an existing account with the same email links it. If that email was never verified, the old password and sessions are revoked, because Google has proven who owns the address.
+- Accounts can connect or disconnect Google in **Settings → Sign-in methods**. Disconnecting requires a password, and 2FA still applies to Google sign-in.
+
 ## Account security and personal backups
 
 Open **Settings** to change your password, verify your email, configure authenticator-based 2FA, download a backup, restore financial data, or permanently delete your account. Apply migration `0004` and restart the API after updating. Install the updated `backend/requirements.txt` first.

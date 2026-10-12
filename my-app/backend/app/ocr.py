@@ -3,7 +3,7 @@ import shutil
 import subprocess
 from tempfile import TemporaryDirectory
 from pathlib import Path
-from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageOps, ImageStat, UnidentifiedImageError
 import pytesseract
 import pypdfium2 as pdfium
 import zxingcpp
@@ -56,6 +56,9 @@ def read_receipt(path: Path, is_pdf: bool):
             qr_payloads.extend(code.text for code in zxingcpp.read_barcodes(image, formats=zxingcpp.BarcodeFormat.QRCode))
             image.thumbnail((1600, 1800))
             prepared = ImageOps.grayscale(image)
+            # Dark or colourful app slips (e.g. MAKE) carry light text; invert so Tesseract sees dark on light.
+            if ImageStat.Stat(prepared).mean[0] < 110:
+                prepared = ImageOps.invert(prepared)
             prepared = prepared.point(lambda value: 255 if value > 180 else value)
             prepared = prepared.resize((prepared.width * 2, prepared.height * 2), Image.Resampling.LANCZOS)
             languages = '+'.join(sorted(settings.ocr_languages.split('+'), key=lambda lang: lang != 'tha'))
@@ -67,6 +70,9 @@ def read_receipt(path: Path, is_pdf: bool):
                         header_text = recognize(header, languages, 6)
                     if read_date(header_text):
                         text += '\n' + header_text
+                    elif read_date(full_text := recognize(prepared, languages, 6)):
+                        # Other banks print the date outside SCB's header band; a block-mode pass finds it.
+                        text += '\n' + full_text
                 texts.append(text)
             finally:
                 prepared.close()

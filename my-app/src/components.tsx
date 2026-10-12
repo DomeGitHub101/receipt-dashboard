@@ -5,12 +5,27 @@ import type { Category, Entry, EntryInput } from './types'
 import { download } from './api'
 import { today, message } from './utils'
 
+// A slip framed by a scanner's viewfinder: "snap a slip". The gold total line echoes the gold dot in the wordmark.
+export function BrandMark() {
+  return (
+    <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+      <g fill="none" stroke="#3fbf86" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 10V7a3 3 0 0 1 3-3h3" />
+        <path d="M22 4h3a3 3 0 0 1 3 3v3" />
+        <path d="M28 22v3a3 3 0 0 1-3 3h-3" />
+        <path d="M10 28H7a3 3 0 0 1-3-3v-3" />
+      </g>
+      <path d="M11 8.5h10V23l-1.67-1.25L17.67 23 16 21.75 14.33 23l-1.66-1.25L11 23Z" fill="#f4efe2" />
+      <path d="M13.5 12.5h5M13.5 15.5h5" stroke="#0c100e" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M13.5 18.5h3" stroke="#c9a46a" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function Brand({ light = false }: { light?: boolean }) {
   return (
     <div className={`brand ${light ? 'light' : ''}`}>
-      <span className="brand-mark">
-        <ReceiptText size={23} />
-      </span>
+      <BrandMark />
       <span>
         slip<span className="brand-soft">snap</span>
         <span className="brand-dot">.</span>
@@ -205,7 +220,7 @@ export function EntryForm({
             </p>
           )}
           <label>
-            รหัสอ้างอิง <span className="optional">ไม่จำเป็นต้องกรอก</span>
+            <span>รหัสอ้างอิง <span className="optional">· ไม่จำเป็นต้องกรอก</span></span>
             <input
               minLength={8}
               maxLength={80}
@@ -239,7 +254,7 @@ export function EntryForm({
         </select>
       </label>
       <label>
-        Notes <span className="optional">optional</span>
+        <span>Notes <span className="optional">· optional</span></span>
         <textarea
           maxLength={2000}
           rows={2}

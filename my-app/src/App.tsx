@@ -204,7 +204,7 @@ export default function App() {
     transactions: 'Every income, every expense, all in one place.',
     upload: 'Turn that receipt into something useful.',
     budgets: 'Set a plan, follow your progress, and adjust as life happens.',
-    settings: 'Security, privacy, and a safe copy of your data.',
+    settings: 'Your profile, sign-in methods and account.',
     categories: 'Little groups that make the big picture clearer.',
   }
   return (
@@ -343,6 +343,7 @@ export default function App() {
                 <Suspense fallback={<Busy text="Preparing your charts…" />}>
                   <Dashboard
                     summary={summary}
+                    month={month}
                     entries={entries}
                     categories={categories}
                     onScan={() => navigate('upload')}
@@ -390,7 +391,7 @@ export default function App() {
               }}
             />
           )}
-          {page === 'settings' && <Settings onRestored={() => setRevision((r) => r + 1)} />}
+          {page === 'settings' && <Settings onUser={setUser} />}
         </main>
         <footer className="app-footer">
           <span>

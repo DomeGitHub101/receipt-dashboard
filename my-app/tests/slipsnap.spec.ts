@@ -64,7 +64,9 @@ test('account, entries, filters, categories, receipt OCR, export and persistent 
   })
   await expect(page.getByLabel('จำนวนเงินที่โอนออก (บาท)')).toHaveValue('210.00')
   await expect(page.locator('input[placeholder="รหัสอ้างอิงตามสลิป (ถ้ามี)"]')).toHaveValue('')
-  await expect(page.locator('main')).not.toContainText('SCB')
+  // A generic slip must not be attributed to a bank in the review panel.
+  await expect(page.locator('.review-card')).not.toContainText('SCB')
+  await expect(page.locator('.review-card')).toContainText('Ready to review')
   await page.getByLabel('Category', { exact: true }).selectOption({ label: 'Food & drinks' })
   await page.getByRole('button', { name: 'บันทึกเงินโอนออก' }).click()
   await expect(page.getByRole('heading', { name: 'All tucked away.' })).toBeVisible()
@@ -72,7 +74,11 @@ test('account, entries, filters, categories, receipt OCR, export and persistent 
   await expect(page.getByRole('button', { name: 'Bank transfer', exact: true })).toBeVisible()
   await navigate('Overview')
   await expect(page.getByText('฿45,000.00', { exact: true }).first()).toBeVisible()
-  await expect(page.locator('.recharts-pie-sector').first()).toBeVisible()
+  await expect(page.locator('.bar-chart .recharts-bar-rectangle').first()).toBeVisible()
+  await expect(page.locator('.category-bars li').first()).toBeVisible()
+  await page.getByRole('button', { name: 'Income', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Daily income' })).toBeVisible()
+  await page.getByRole('button', { name: 'Spending', exact: true }).click()
   const dismiss = page.getByRole('button', { name: 'Dismiss notification' })
   await expect(dismiss).toBeHidden({ timeout: 6_000 })
   await page.screenshot({

@@ -15,6 +15,10 @@ class Credentials(BaseModel):
             raise ValueError('Password must be at most 72 UTF-8 bytes')
         return value
 
+class GoogleCredential(BaseModel):
+    credential: str = Field(min_length=20, max_length=4096)
+    code: str = Field(default='', max_length=80)
+
 class Register(Credentials):
     name: str = Field(min_length=1, max_length=80)
 

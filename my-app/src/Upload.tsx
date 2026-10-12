@@ -117,7 +117,7 @@ export default function Upload({
             <div className="section-heading">
               <div>
                 <h2>อ่านสลิปโอนเงิน</h2>
-                <p>รองรับสลิปโอนเงิน จ่ายเงิน และเติมเงิน ครั้งละหนึ่งรายการ</p>
+                <p>รองรับสลิปจาก SCB, กสิกร (K PLUS / MAKE), Dime, กรุงไทย, กรุงเทพ, กรุงศรี, ttb, ออมสิน, TrueMoney และพร้อมเพย์ ครั้งละหนึ่งรายการ</p>
               </div>
             </div>
             <input
@@ -214,7 +214,7 @@ export default function Upload({
                 <h2>ข้อมูลการโอนออก</h2>
                 <p>ตรวจวันที่ จำนวนเงิน และรหัสอ้างอิงก่อนบันทึก</p>
               </div>
-              <span className="small-tag">{scan ? 'Ready to review' : 'Awaiting receipt'}</span>
+              <span className="small-tag">{scan ? (scan.bank ? `ธนาคาร: ${scan.bank}` : 'Ready to review') : 'Awaiting receipt'}</span>
             </div>
             {busy ? (
               <div className="scanning-state">

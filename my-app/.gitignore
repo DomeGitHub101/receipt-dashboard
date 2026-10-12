@@ -33,3 +33,6 @@ backend/uploads/
 backend/.env
 test-results/
 playwright-report/
+
+# Real bank slips used for local OCR tuning; they contain names and account numbers.
+Slip/

@@ -70,7 +70,7 @@ def remove_files(paths):
 
 @router.post('/export')
 async def export_all(data: Confirmation, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
-    await reauthenticate(db, user, data.password, data.code)
+    await reauthenticate(db, user, data.password, data.code, data.google_credential)
     categories = await owned_rows(db, Category, user)
     receipts = await owned_rows(db, Receipt, user)
     transactions = await owned_rows(db, Transaction, user)
@@ -137,13 +137,13 @@ def read_backup(content):
         raise HTTPException(422, 'Invalid, incomplete, or oversized SlipSnap backup. No data was changed.')
 
 @router.post('/restore')
-async def restore(file: UploadFile = File(...), password: str = Form(...), code: str = Form(''), confirmation: str = Form(...),
-                  user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
+async def restore(file: UploadFile = File(...), password: str = Form(''), code: str = Form(''), confirmation: str = Form(...),
+                  google_credential: str = Form(''), user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
     try:
-        auth = Confirmation(password=password, code=code, confirmation=confirmation)
+        auth = Confirmation(password=password, code=code, confirmation=confirmation, google_credential=google_credential)
     except ValidationError:
         raise HTTPException(422, 'Invalid confirmation details.')
-    await reauthenticate(db, user, auth.password, auth.code)
+    await reauthenticate(db, user, auth.password, auth.code, auth.google_credential)
     if confirmation != 'RESTORE':
         raise HTTPException(422, 'Type RESTORE to replace your financial data.')
     content = await file.read(LIMIT + 1)
@@ -186,7 +186,7 @@ async def restore(file: UploadFile = File(...), password: str = Form(...), code:
 
 @router.post('/delete')
 async def delete_account(data: Confirmation, response: Response, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
-    await reauthenticate(db, user, data.password, data.code)
+    await reauthenticate(db, user, data.password, data.code, data.google_credential)
     if data.confirmation != 'DELETE':
         raise HTTPException(422, 'Type DELETE to permanently delete your account.')
     paths = await erase_financial_data(db, user)

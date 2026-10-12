@@ -12,7 +12,7 @@ from .models import User, RefreshSession, ActionToken, RecoveryCode
 from .schemas import Credentials
 from .security import current_user, issue_session
 from .account_security import (now, digest, cipher, throttle, reauthenticate, password_hash,
-    verify_factor, email_token, consume_token, mail_ready)
+    verify_factor, verify_google, email_token, consume_token, mail_ready)
 
 router = APIRouter(prefix='/api')
 
@@ -30,9 +30,11 @@ class EmailInput(BaseModel):
     email: EmailStr
 
 class Confirmation(BaseModel):
-    password: str = Field(min_length=8, max_length=72)
+    # Accounts created with Google confirm with a fresh Google credential instead of a password.
+    password: str = Field(default='', max_length=72)
     code: str = Field(default='', max_length=80)
     confirmation: str = Field(default='', max_length=100)
+    google_credential: str = Field(default='', max_length=4096)
 
     @field_validator('password')
     @classmethod
@@ -46,6 +48,19 @@ class ChangePassword(Confirmation):
     @classmethod
     def new_password_bytes(cls, value):
         return Credentials.password_bytes(value)
+
+class ProfileInput(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+
+    @field_validator('name')
+    @classmethod
+    def clean(cls, value):
+        if not value.strip():
+            raise ValueError('Name is required')
+        return value.strip()
+
+class GoogleLink(Confirmation):
+    link_credential: str = Field(min_length=20, max_length=4096)
 
 class TokenInput(BaseModel):
     token: str = Field(min_length=20, max_length=100)
@@ -62,13 +77,47 @@ class ResetPassword(TokenInput):
 @router.get('/account/security')
 async def status(user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
     count = await db.scalar(select(func.count()).select_from(RecoveryCode).where(RecoveryCode.user_id == user.id))
-    return {'email': user.email, 'email_verified': user.email_verified, 'two_factor_enabled': bool(user.totp_secret),
-        'recovery_codes_remaining': count, 'email_delivery_configured': mail_ready()}
+    return {'name': user.name, 'email': user.email, 'email_verified': user.email_verified, 'two_factor_enabled': bool(user.totp_secret),
+        'recovery_codes_remaining': count, 'email_delivery_configured': mail_ready(),
+        'has_password': user.has_password, 'google_linked': bool(user.google_sub), 'google_available': bool(settings.google_client_id)}
+
+@router.get('/auth/options')
+async def options():
+    return {'google_client_id': settings.google_client_id or None, 'email_delivery_configured': mail_ready()}
+
+@router.put('/account/profile')
+async def update_profile(data: ProfileInput, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
+    user.name = data.name
+    await db.commit()
+    return {'id': user.id, 'name': user.name, 'email': user.email}
+
+@router.post('/account/google/link')
+async def link_google(data: GoogleLink, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
+    await reauthenticate(db, user, data.password, data.code, data.google_credential)
+    claims = await verify_google(data.link_credential)
+    owner = await db.scalar(select(User).where(User.google_sub == claims['sub']))
+    if owner and owner.id != user.id:
+        raise HTTPException(409, 'This Google account is already linked to another SlipSnap account.')
+    user.google_sub = claims['sub']
+    if claims['email'].lower() == user.email:
+        user.email_verified = True
+    await db.commit()
+    return {'message': 'Google account linked. You can now sign in with Google.'}
+
+@router.post('/account/google/unlink')
+async def unlink_google(data: Confirmation, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
+    if not user.has_password:
+        raise HTTPException(409, 'Set a password before disconnecting Google, or you would lose access to your account.')
+    await reauthenticate(db, user, data.password, data.code, data.google_credential)
+    user.google_sub = None
+    await db.commit()
+    return {'message': 'Google account disconnected. Sign in with your email and password.'}
 
 @router.post('/account/password')
 async def change_password(data: ChangePassword, response: Response, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
-    await reauthenticate(db, user, data.password, data.code)
+    await reauthenticate(db, user, data.password, data.code, data.google_credential)
     user.password_hash = await password_hash(data.new_password)
+    user.has_password = True
     await db.execute(delete(RefreshSession).where(RefreshSession.user_id == user.id))
     await db.execute(delete(ActionToken).where(ActionToken.user_id == user.id, ActionToken.purpose == 'reset'))
     return await issue_session(user, db, response)
@@ -112,7 +161,7 @@ async def verify_email(data: TokenInput, request: Request, db: AsyncSession = De
 
 @router.post('/account/2fa/setup')
 async def setup(data: Confirmation, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
-    await reauthenticate(db, user, data.password, data.code)
+    await reauthenticate(db, user, data.password, data.code, data.google_credential)
     if user.totp_secret:
         raise HTTPException(409, 'Two-factor authentication is already enabled.')
     secret = pyotp.random_base32()
@@ -123,7 +172,7 @@ async def setup(data: Confirmation, user: User = Depends(current_user), db: Asyn
 
 @router.post('/account/2fa/enable')
 async def enable(data: Confirmation, response: Response, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
-    await reauthenticate(db, user, data.password, '')
+    await reauthenticate(db, user, data.password, '', data.google_credential)
     if user.totp_secret or not user.totp_pending or not user.totp_pending_expires or user.totp_pending_expires < now():
         raise HTTPException(400, 'Start two-factor setup again.')
     secret = cipher().decrypt(user.totp_pending.encode()).decode()
@@ -140,7 +189,7 @@ async def enable(data: Confirmation, response: Response, user: User = Depends(cu
 
 @router.post('/account/2fa/disable')
 async def disable(data: Confirmation, response: Response, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):
-    await reauthenticate(db, user, data.password, data.code)
+    await reauthenticate(db, user, data.password, data.code, data.google_credential)
     user.totp_secret, user.totp_pending, user.totp_pending_expires, user.totp_last_step = None, None, None, -1
     await db.execute(delete(RecoveryCode).where(RecoveryCode.user_id == user.id))
     await db.execute(delete(RefreshSession).where(RefreshSession.user_id == user.id))

@@ -9,15 +9,21 @@
     "build": "tsc --noEmit && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
+    "serve": "npm run build && vite preview",
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.5.0",
     "@tesseract.js-data/eng": "^1.0.0",
     "@tesseract.js-data/tha": "^1.0.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^14.1.0",
     "lucide-react": "^1.46.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "recharts": "^3.10.1",
+    "tailwind-merge": "^3.7.0",
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {

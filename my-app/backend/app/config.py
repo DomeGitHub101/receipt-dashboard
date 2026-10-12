@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     smtp_ssl: bool = False
     public_url: str = 'http://localhost:5173'
     require_verified_email: bool = False
+    google_client_id: str = ''
 
 
 settings = Settings()

@@ -10,6 +10,9 @@ from email.message import EmailMessage
 import bcrypt
 import pyotp
 from cryptography.fernet import Fernet
+from google.auth.exceptions import GoogleAuthError, TransportError
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
 from fastapi import HTTPException
 from sqlalchemy import delete, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -65,9 +68,32 @@ async def verify_factor(db, user, code):
         return
     raise HTTPException(401, 'Enter a valid authenticator code or an unused recovery code. If you just used a code, wait for the next one.')
 
-async def reauthenticate(db, user, password, code):
+_google_transport = google_requests.Request()
+
+async def verify_google(credential):
+    """Validate a Google Identity Services ID token for this app and return its claims."""
+    if not settings.google_client_id:
+        raise HTTPException(503, 'Google sign-in is not configured. Contact the site administrator.')
+    try:
+        claims = await run_in_threadpool(id_token.verify_oauth2_token, credential, _google_transport,
+                                         settings.google_client_id, clock_skew_in_seconds=10)
+    except TransportError:
+        raise HTTPException(503, 'Could not reach Google. Please try again.')
+    except (ValueError, GoogleAuthError):
+        raise HTTPException(401, 'Google sign-in failed. Please try again.')
+    if not claims.get('email_verified') or not claims.get('email'):
+        raise HTTPException(401, 'Your Google account email is not verified.')
+    return claims
+
+async def reauthenticate(db, user, password, code, google_credential=''):
     await throttle(db, 'reauth:' + user.id)
-    await verify_password(user, password)
+    if google_credential:
+        claims = await verify_google(google_credential)
+        # Only a fresh sign-in with the linked Google account counts as confirmation.
+        if not user.google_sub or claims['sub'] != user.google_sub or claims['iat'] < time.time() - 600:
+            raise HTTPException(401, 'Confirm with the Google account linked to SlipSnap.')
+    else:
+        await verify_password(user, password)
     await verify_factor(db, user, code)
 
 def mail_ready():

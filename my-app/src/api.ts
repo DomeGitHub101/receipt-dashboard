@@ -42,13 +42,34 @@ export async function restoreSession() {
 
 export async function signIn(
   mode: 'login' | 'register',
-  data: { email: string; password: string; name?: string; code?: string },
+  data: { email: string; password: string; name?: string },
 ) {
   const response = await fetch(`/api/auth/${mode}`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
+  })
+  if (!response.ok) throw new Error(await errorMessage(response))
+  const session = await response.json()
+  token = session.access_token
+  return session.user as User
+}
+
+export type AuthOptions = { google_client_id: string | null; email_delivery_configured: boolean }
+
+export async function authOptions(): Promise<AuthOptions> {
+  const response = await fetch('/api/auth/options', { credentials: 'include' })
+  if (!response.ok) throw new Error(await errorMessage(response))
+  return response.json()
+}
+
+export async function googleSignIn(credential: string) {
+  const response = await fetch('/api/auth/google', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ credential }),
   })
   if (!response.ok) throw new Error(await errorMessage(response))
   const session = await response.json()

@@ -6,7 +6,7 @@ import { Busy, ErrorBox } from './components'
 import { message, money } from './utils'
 
 function ratio(spent: number, amount: number) {
-  if (!amount) return spent ? 100 : 0
+  if (!amount) return 0
   return Math.min((spent / amount) * 100, 100)
 }
 
@@ -60,17 +60,18 @@ export default function Budgets({ month, revision, onSaved }: { month: string; r
 
   if (loading) return <Busy text="Loading your budget…" />
   if (!budget) return <ErrorBox error={error} />
-  const over = Number(budget.remaining) < 0
+  const planned = Number(budget.amount) > 0
+  const over = planned && Number(budget.remaining) < 0
   return (
     <form className="budget-page" onSubmit={submit}>
       <ErrorBox error={error} />
-      <section className={`budget-hero ${over ? 'over' : ''}`}>
+      <section className={`budget-hero ${over ? 'over' : ''} ${planned ? '' : 'unset'}`}>
         <div className="budget-hero-icon"><PiggyBank size={30} /></div>
         <div className="budget-hero-copy">
           <span className="eyebrow">MONTHLY SPENDING PLAN</span>
-          <h2>{over ? `${money(Math.abs(Number(budget.remaining)))} over budget` : `${money(Number(budget.remaining))} remaining`}</h2>
-          <p>{money(Number(budget.spent))} spent from a {money(Number(budget.amount))} monthly budget.</p>
-          <div className="budget-track"><i style={{ width: `${ratio(Number(budget.spent), Number(budget.amount))}%` }} /></div>
+          <h2>{!planned ? 'Set a budget for this month' : over ? `${money(Math.abs(Number(budget.remaining)))} over budget` : `${money(Number(budget.remaining))} remaining`}</h2>
+          <p>{planned ? `${money(Number(budget.spent))} spent from a ${money(Number(budget.amount))} monthly budget.` : `${money(Number(budget.spent))} spent so far. Enter an amount to see what’s left.`}</p>
+          {planned && <div className="budget-track"><i style={{ width: `${ratio(Number(budget.spent), Number(budget.amount))}%` }} /></div>}
         </div>
         <label className="budget-total">
           <span>Monthly budget</span>

@@ -16,12 +16,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from openpyxl import Workbook
 from .config import settings
 from .db import get_db
-from .models import User, Category, Transaction, Receipt, RefreshSession, MonthlyBudget, CategoryBudget
-from .schemas import Register, Credentials, CategoryInput, TransactionInput, BudgetInput
+from .models import User, Category, Transaction, Receipt, RefreshSession, MonthlyBudget, CategoryBudget, ActionToken
+from .schemas import Register, Credentials, GoogleCredential, CategoryInput, TransactionInput, BudgetInput
 from .security import current_user, issue_session, decode, check_origin
 from .ocr import read_receipt
 from .parser import parse_receipt
-from .account_security import throttle, verify_password, verify_factor
+from .account_security import throttle, verify_password, verify_factor, verify_google
 from .account import router as account_router
 from .account_data import router as account_data_router
 
@@ -67,10 +67,49 @@ async def login(data: Credentials, request: Request, response: Response, db: Asy
     await throttle(db, 'login-ip:' + request.client.host, 50)
     await throttle(db, 'login-email:' + str(data.email).lower(), 10)
     user = await db.scalar(select(User).where(User.email == str(data.email).lower()))
+    if user and not user.has_password:
+        raise HTTPException(401, 'This account uses Google sign-in. Continue with Google, then set a password in Settings if you want one.')
     await verify_password(user, data.password)
     await verify_factor(db, user, data.code)
     if settings.require_verified_email and not user.email_verified:
         raise HTTPException(403, 'Verify your email before signing in. Use the verification link option on this page.')
+    return await issue_session(user, db, response)
+
+async def unusable_password():
+    return (await run_in_threadpool(bcrypt.hashpw, uuid4().hex.encode(), bcrypt.gensalt())).decode()
+
+@app.post('/api/auth/google')
+async def google_login(data: GoogleCredential, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+    await throttle(db, 'google-ip:' + request.client.host, 50)
+    claims = await verify_google(data.credential)
+    email = claims['email'].lower()
+    user = await db.scalar(select(User).where(User.google_sub == claims['sub']))
+    if not user:
+        user = await db.scalar(select(User).where(User.email == email))
+        if user and user.google_sub:
+            raise HTTPException(409, 'This email is linked to a different Google account.')
+        if user:
+            if not user.email_verified:
+                # Google proved who owns this address; a password set by someone else must not survive.
+                user.password_hash, user.has_password = await unusable_password(), False
+                await db.execute(delete(RefreshSession).where(RefreshSession.user_id == user.id))
+                await db.execute(delete(ActionToken).where(ActionToken.user_id == user.id))
+            user.google_sub, user.email_verified = claims['sub'], True
+        else:
+            user = User(email=email, name=(claims.get('name') or '').strip()[:80] or 'Friend', email_verified=True,
+                        google_sub=claims['sub'], has_password=False, password_hash=await unusable_password())
+            db.add(user)
+        try:
+            if user in db.new:
+                await db.flush()
+                db.add_all([Category(user_id=user.id, name=name, color=color) for name, color in DEFAULTS])
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
+            raise HTTPException(409, 'Could not finish Google sign-in. Please try again.')
+    if user.totp_secret and not data.code:
+        raise HTTPException(401, 'Enter your authenticator or recovery code to finish signing in.', headers={'X-Two-Factor': 'required'})
+    await verify_factor(db, user, data.code)
     return await issue_session(user, db, response)
 
 @app.post('/api/auth/refresh', dependencies=[Depends(check_origin)])
