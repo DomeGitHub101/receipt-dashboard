@@ -1,162 +1,132 @@
-# 🧾 SlipSnap — Receipt OCR Expense Tracker
+# SlipSnap — Thai Bank Slip Reader & Expense Tracker
 
-> Upload a receipt, let the system read it, and automatically log your income and expenses.
-> Built as a personal-use tool and a portfolio project.
+Upload a Thai bank-transfer or e-wallet slip, and SlipSnap reads the date, amount, sending bank and
+transaction reference, then logs it as an expense. A dashboard summarizes income, spending and
+monthly budgets.
 
-This is a web app for tracking personal expenses. Users can upload a photo of a receipt/slip,
-and the system will run OCR to extract details such as merchant name, date, and total amount,
-then automatically log it as an income/expense entry — complete with a dashboard summarizing
-overall finances.
+Built as a personal-use tool and portfolio project. Everything runs locally: OCR happens on your own
+machine and no cloud OCR API is contacted.
 
-The design is inspired by Starbucks — deep green (`#00704A`), cream, and coffee-brown tones,
-with bold, rounded, warm typography. The goal is a friendly, human feel rather than a cold,
-generic fintech dashboard (and to avoid looking too "AI-generated").
+## Features
 
----
+- **Multi-bank slip reading** — reads slips from 17 Thai banks (SCB, KBank, Krungthai, Bangkok Bank,
+  Krungsri, ttb, GSB, KKP, UOB, CIMB Thai and others) plus TrueMoney, ShopeePay, MAKE by KBank and Dime.
+- **OCR + QR, combined** — Tesseract OCR (Thai/English) extracts the date and amount; the Bank of
+  Thailand slip-verification QR code supplies the sending bank and transaction reference.
+- **Thai date handling** — Thai month names and Buddhist-era years are converted to ISO dates, with a
+  focused second OCR pass when the date is unclear.
+- **Review before saving** — every extracted field can be corrected; fields stay blank when the parser
+  is not confident.
+- **Duplicate protection** — a per-user unique constraint on the transaction reference rejects the same
+  slip being saved twice.
+- **Dashboard and budgets** — monthly income/expense charts, category breakdowns, and monthly budgets
+  with optional per-category limits.
+- **Search, filter and export** — filter by date, merchant, category, type and amount; export to CSV or
+  Excel with spreadsheet formula-injection protection.
+- **Account security** — JWT access tokens with rotating HttpOnly refresh cookies, Google sign-in,
+  authenticator-app 2FA with recovery codes, email verification, password reset, and rate limiting.
+- **Personal backups** — download all data as a ZIP, restore it, or permanently delete the account.
 
-## ✨ Features
+> SlipSnap reads what is printed on a slip. It does **not** verify a payment with the bank.
 
-- 🔐 **Authentication** — Sign up / log in with JWT, secure session handling
-- 📸 **Receipt Upload** — Drag-and-drop or snap a photo from mobile (supports JPG/PNG/PDF)
-- 🔍 **Automatic OCR** — Extracts merchant name, date, total amount, and line items (if available) from the receipt image
-- ✏️ **Editable Entries** — In case OCR misreads something, users can correct the data before saving
-- 📊 **Summary Dashboard** — Monthly income/expense charts, broken down by category
-- 🏷️ **Expense Categories** — Food, transport, shopping, bills, etc. (fully customizable)
-- 🔎 **Search & Filter** — By date, merchant, category, or price range
-- 🌙 **Responsive UI** — Works well on both mobile and desktop
-
----
-
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Frontend | React (Vite) + TypeScript, TailwindCSS |
-| Backend | FastAPI (Python) |
-| Database | PostgreSQL + SQLAlchemy (async) + Alembic (migrations) |
-| OCR | Tesseract OCR (`pytesseract`) or Google Cloud Vision API (higher accuracy option) |
-| Auth | JWT (access + refresh tokens), bcrypt for password hashing |
-| File Storage | Local disk (dev) / S3-compatible storage (prod), e.g. MinIO |
-| Containerization | Docker + Docker Compose |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS, Recharts |
+| Backend | FastAPI (Python), Pydantic |
+| Database | SQLAlchemy 2 (async) + Alembic; SQLite by default, PostgreSQL 16 supported |
+| OCR | Tesseract (`eng+tha`) via `pytesseract`, with a WebAssembly fallback; `zxing-cpp` for QR codes |
+| Auth | PyJWT, bcrypt, `pyotp` (2FA), Google ID tokens |
+| Testing | pytest (backend), Playwright (end-to-end, desktop and mobile) |
+| Containers | Docker Compose (PostgreSQL, API, frontend) |
 
-> 💡 Start with Tesseract (free, runs locally), then switch to Cloud Vision later
-> if you need higher accuracy for Thai receipts with unusual fonts/handwriting.
-
----
-
-## 📁 Project Structure
+## How a slip is read
 
 ```
-slipsnap/
+image / PDF ──► preprocessing ──► Tesseract OCR ──► date + amount
+      │
+      └───────► QR decode (zxing-cpp) ──► Bank of Thailand slip QR
+                                            ├─ sending bank code (e.g. 014 = SCB)
+                                            └─ transaction reference
+                         │
+                         ▼
+          detect bank (QR first, then text cues) ──► review form ──► save
+```
+
+When a slip has no readable QR code, the bank is detected from text cues printed on the slip, and the
+reference can be entered manually.
+
+## Project Structure
+
+```
+my-app/
+├── src/                  # React frontend (Dashboard, Upload, Transactions, Budgets, Settings)
 ├── backend/
 │   ├── app/
-│   │   ├── api/              # route handlers (auth, receipts, transactions, dashboard)
-│   │   ├── core/              # config, security, dependencies
-│   │   ├── models/             # SQLAlchemy models
-│   │   ├── schemas/             # Pydantic schemas
-│   │   ├── services/
-│   │   │   ├── ocr_service.py    # image processing + OCR call
-│   │   │   └── parser.py          # parses OCR text into structured data (merchant/date/amount)
-│   │   ├── db/                  # session, base
-│   │   └── main.py
-│   ├── alembic/                 # migrations
-│   ├── requirements.txt
-│   └── Dockerfile
-├── frontend/
-│   ├── src/
-│   │   ├── components/           # UI components (Starbucks-inspired theme)
-│   │   ├── pages/                 # Login, Dashboard, Upload, Transactions
-│   │   ├── hooks/
-│   │   ├── api/                    # axios client
-│   │   └── App.tsx
-│   ├── tailwind.config.ts
-│   └── Dockerfile
-├── docker-compose.yml
-└── README.md
+│   │   ├── main.py       # API routes: auth, categories, budgets, transactions, receipts, export
+│   │   ├── parser.py     # bank detection, QR parsing, Thai date and amount extraction
+│   │   ├── ocr.py        # image preprocessing and Tesseract calls
+│   │   ├── models.py     # SQLAlchemy models
+│   │   └── account*.py   # security, 2FA, Google sign-in, backup and restore
+│   ├── alembic/          # database migrations
+│   └── tests/            # pytest suite
+├── tests/                # Playwright end-to-end tests and sample slips
+├── scripts/              # OCR fallback, test-slip generator, start scripts
+└── docker-compose.yml
 ```
 
----
+## Getting Started
 
-## 🚀 Getting Started
-
-### 1. Clone & set up environment variables
+Prerequisites: Node.js 22.12+ and Python 3.11+. Run from `my-app`
+(on Windows, use `backend/.venv/Scripts/python.exe` and `npm.cmd`):
 
 ```bash
-git clone <repo-url> slipsnap
-cd slipsnap
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
+npm ci
+python -m venv backend/.venv
+backend/.venv/bin/python -m pip install -r backend/requirements.txt
+backend/.venv/bin/python -m alembic -c backend/alembic.ini upgrade head
 ```
 
-Example `backend/.env`:
-
-```env
-DATABASE_URL=postgresql+asyncpg://slipsnap:slipsnap@db:5432/slipsnap
-SECRET_KEY=change-me-to-a-random-secret
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-OCR_PROVIDER=tesseract   # or "google_vision"
-```
-
-### 2. Run with Docker Compose (recommended)
+Start the API and the frontend in two terminals:
 
 ```bash
-docker compose up --build
-```
-
-- Frontend → http://localhost:5173
-- Backend (Swagger docs) → http://localhost:8000/docs
-- PostgreSQL → localhost:5432
-
-### 3. Run manually (services separately, for dev)
-
-**Backend**
-```bash
-cd backend
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-alembic upgrade head
-uvicorn app.main:app --reload
-```
-
-**Frontend**
-```bash
-cd frontend
-npm install
+backend/.venv/bin/python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
 npm run dev
 ```
 
----
+- App: http://localhost:5173
+- API docs (Swagger): http://localhost:8000/docs
 
-## 🔗 API Overview (example)
+Create an account to start; there are no default credentials. To try it quickly, upload
+`tests/fixtures/receipt.png`, a synthetic slip.
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/auth/register` | Register a new user |
-| POST | `/auth/login` | Log in, returns JWT |
-| POST | `/receipts/upload` | Upload a receipt image → runs OCR → returns extracted data |
-| POST | `/transactions` | Save a transaction (after user confirms/edits the OCR data) |
-| GET | `/transactions` | List transactions, with filters (date/category/merchant) |
-| GET | `/dashboard/summary` | Monthly income/expense summary, broken down by category |
+### With Docker Compose (PostgreSQL)
 
-Full details available via Swagger UI at `/docs`.
+```bash
+cp .env.example .env      # then set SECRET_KEY to a random value
+docker compose up --build
+```
 
----
+Compose runs the migrations, then starts PostgreSQL, the API and the frontend.
 
-## 🗺️ Roadmap
+## Tests
 
-- [ ] Set up auth (register/login/JWT) + protected routes
-- [ ] File upload + store original images
-- [ ] Integrate Tesseract OCR + write a parser for Thai receipts
-- [ ] Build an edit screen to confirm data before saving
-- [ ] Dashboard + summary charts (recharts)
-- [ ] Customizable category system
-- [ ] Export data to CSV/Excel
-- [ ] Deployment (e.g. Frontend → Vercel, Backend → Render/Railway, DB → Supabase/Neon)
+```bash
+cd my-app/backend
+python -m pytest tests -q        # 74 tests: parser, auth, access control, exports, security
+cd .. && npm run test:e2e        # Playwright, with the app running
+```
 
----
+Backend tests use temporary SQLite databases. The slip tests cover bank detection, QR parsing,
+Thai dates and amount extraction.
 
-## 📌 Notes
+## More detail
 
-This project was built for learning and personal use. OCR accuracy depends on the
-quality of the receipt photo and each merchant's receipt format. Users should always
-review and correct extracted data before saving.
+Configuration, Google sign-in setup, SMTP, 2FA, backups and deployment notes are in
+[`my-app/README.md`](my-app/README.md).
+
+## Notes
+
+OCR accuracy depends on photo quality and slip layout, so always review extracted data before saving.
+This project is for learning and personal use.
