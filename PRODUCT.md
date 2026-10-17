@@ -15,7 +15,7 @@ Installable PWA (manifest, home-screen icons, standalone window). Used mainly on
 
 ## Product Purpose
 
-SlipSnap reads a Thai bank-transfer or e-wallet slip (date, amount, sending bank, transaction reference) and logs it as an expense. A dashboard summarizes income, spending, category breakdowns and monthly budgets. Success: a slip goes from photo to a correct, saved entry with little friction, and the app shows engineering and design quality to a reviewer within the first minute.
+Moo Tang reads a Thai bank-transfer or e-wallet slip (date, amount, sending bank, transaction reference) and logs it as an expense. A dashboard summarizes income, spending, category breakdowns and monthly budgets. Success: a slip goes from photo to a correct, saved entry with little friction, and the app shows engineering and design quality to a reviewer within the first minute.
 
 ## Positioning
 
@@ -35,13 +35,13 @@ SlipSnap reads a Thai bank-transfer or e-wallet slip (date, amount, sending bank
 - Auth: JWT with rotating HttpOnly refresh cookies, Google sign-in, authenticator-app 2FA with recovery codes, email verification, password reset and rate limiting.
 - Duplicate protection through a per-user unique constraint on the transaction reference.
 - Data: personal ZIP backup and restore, and permanent account deletion.
-- SlipSnap reads what is printed on a slip. It does **not** verify a payment with the bank, and the UI must never imply that it does.
+- Moo Tang reads what is printed on a slip. It does **not** verify a payment with the bank, and the UI must never imply that it does.
 - Language: the UI copy is currently English and the slip data is Thai. **Planned:** Thai and English UI with a language switch. This is not built yet.
-- Mainly dark UI (`color-scheme: dark`). The font is IBM Plex Sans Thai, which covers both Thai and Latin text.
+- Light UI only. The owner rejected the earlier dark green look ("no dark green"); do not bring back a dark or green-led theme. Visual decisions live in DESIGN.md.
 
 ## Brand Commitments
 
-- Name: **SlipSnap**. Logo and icons: `my-app/public/slipsnap.svg`, `favicon.svg`, `icon-*.png`.
+- Name: **หมูตังค์ (Moo Tang)**, renamed from SlipSnap on 2026-10-18 because the old name felt generic. Thai wordmark in the app; "Moo Tang" in English sentences. Logo: a smiling piggy bank with a coin (`my-app/public/mootang.svg`, `icon-*.png`, `BrandMark` in `src/components.tsx`).
 - Existing voice: "A little clarity for your everyday spending." / "Make sense of every spend."
 
 ## Evidence on Hand

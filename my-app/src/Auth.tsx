@@ -172,7 +172,7 @@ export default function Auth({ onAuth }: { onAuth: (user: User) => void }) {
         <p className="text-base text-muted-foreground">
           {mode === 'login'
             ? 'Sign in to see where your money went this month.'
-            : 'Create your SlipSnap account in a few seconds.'}
+            : 'Create your Moo Tang account in a few seconds.'}
         </p>
       </div>
       {googleClientId && (
@@ -254,7 +254,7 @@ export default function Auth({ onAuth }: { onAuth: (user: User) => void }) {
         </Button>
       </form>
       <p className="mt-8 text-sm text-muted-foreground">
-        {mode === 'login' ? 'New to SlipSnap?' : 'Already have an account?'}{' '}
+        {mode === 'login' ? 'New to Moo Tang?' : 'Already have an account?'}{' '}
         <button
           type="button"
           className="font-medium text-primary underline-offset-4 hover:underline"

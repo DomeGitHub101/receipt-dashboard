@@ -3,60 +3,61 @@ import type * as React from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { ChevronLeftIcon } from 'lucide-react'
 
+import { Brand } from '../../components'
 import { Button } from './button'
 
 /**
- * Split auth layout: an animated "floating paths" panel on the left (large screens) and the
- * form column on the right. Adapted from the 21st.dev auth-page; the form is passed in as children.
+ * Split auth layout: a welcome panel with drifting ribbon lines on the left (large screens) and the
+ * form column on the right. The form is passed in as children.
  */
 export function AuthPage({ children, onBack }: { children: React.ReactNode; onBack?: () => void }) {
   return (
     <main className="relative min-h-svh bg-background text-foreground lg:grid lg:grid-cols-2">
-      <div className="relative hidden h-svh flex-col overflow-hidden border-r border-border bg-muted/60 p-10 lg:sticky lg:top-0 lg:flex">
-        <div className="absolute inset-0 z-10 bg-gradient-to-t from-background to-transparent" />
-        <div className="z-10 mt-auto">
-          <blockquote className="space-y-2">
-            <p className="text-xl leading-relaxed">
-              &ldquo;Small spends. Bigger picture. Snap a slip and see exactly where your month
-              went.&rdquo;
-            </p>
-            <footer className="font-mono text-sm font-semibold text-muted-foreground">
-              ~ Less paper. More peace of mind.
-            </footer>
-          </blockquote>
-        </div>
+      <div className="auth-welcome relative hidden h-svh flex-col overflow-hidden p-10 lg:sticky lg:top-0 lg:flex">
         <div className="absolute inset-0 transform-gpu [contain:strict] will-change-transform">
-          <FloatingPaths position={1} />
-          <FloatingPaths position={-1} />
+          <FloatingPaths position={1} color="#ff6ba7" />
+          <FloatingPaths position={-1} color="#b79cff" />
         </div>
+        <div className="relative">
+          <Brand />
+        </div>
+        <blockquote className="relative mt-auto space-y-2">
+          <p className="font-[family-name:var(--font-display)] text-2xl leading-snug font-semibold">
+            Small spends. Bigger picture. Snap a slip and see exactly where your month went.
+          </p>
+          <footer className="text-sm font-semibold text-muted-foreground">Less paper. More peace of mind.</footer>
+        </blockquote>
       </div>
-      <div className="relative flex min-h-svh flex-col justify-center overflow-hidden px-4 py-20">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_85%_0%,--theme(--color-foreground/.05)_0,transparent_70%)]"
-        />
+      <div className="auth-form-column relative flex min-h-svh flex-col justify-center overflow-hidden px-4 py-20">
+        <div className="absolute inset-0 transform-gpu [contain:strict] lg:hidden">
+          <FloatingPaths position={1} color="#ff6ba7" faint />
+        </div>
         {onBack && (
           <Button type="button" variant="ghost" className="absolute top-7 left-5" onClick={onBack}>
             <ChevronLeftIcon className="me-2 size-4" />
             Back to sign in
           </Button>
         )}
-        <div className="relative mx-auto w-full space-y-4 sm:w-sm">{children}</div>
+        <div className="auth-form-card relative mx-auto w-full space-y-4 sm:w-sm">
+          <div className="lg:hidden">
+            <Brand />
+          </div>
+          {children}
+        </div>
       </div>
     </main>
   )
 }
 
-// Fewer, slightly bolder lines keep the look while cutting the per-frame paint work.
-const PATH_COUNT = 20
+// Ribbon-like lines drifting across the welcome panel, in the world's pink and lilac.
+const PATH_COUNT = 16
 
-function FloatingPaths({ position }: { position: number }) {
+function FloatingPaths({ position, color, faint = false }: { position: number; color: string; faint?: boolean }) {
   const reduceMotion = useReducedMotion()
   // Durations are drawn once so re-renders don't restart the animation.
   const paths = useMemo(
     () =>
       Array.from({ length: PATH_COUNT }, (_, id) => {
-        // Spread the fewer lines over the same fan the original 36 covered.
         const i = Math.round((id * 35) / (PATH_COUNT - 1))
         return {
           id,
@@ -65,8 +66,8 @@ function FloatingPaths({ position }: { position: number }) {
           } ${216 - i * 6} ${152 - i * 5 * position} ${343 - i * 6}C${616 - i * 5 * position} ${
             470 - i * 6
           } ${684 - i * 5 * position} ${875 - i * 6} ${684 - i * 5 * position} ${875 - i * 6}`,
-          width: 0.5 + id * 0.05,
-          duration: 14 + Math.random() * 7,
+          width: 0.4 + id * 0.05,
+          duration: 16 + Math.random() * 8,
         }
       }),
     [position],
@@ -74,21 +75,17 @@ function FloatingPaths({ position }: { position: number }) {
 
   return (
     <div className="pointer-events-none absolute inset-0">
-      <svg
-        className="h-full w-full text-primary"
-        viewBox="0 0 696 316"
-        fill="none"
-        aria-hidden="true"
-      >
+      <svg className="h-full w-full" viewBox="0 0 696 316" preserveAspectRatio="none" fill="none" aria-hidden="true">
         {paths.map((path) => (
           <motion.path
             key={path.id}
             d={path.d}
-            stroke="currentColor"
+            stroke={color}
             strokeWidth={path.width}
-            strokeOpacity={0.12 + path.id * 0.04}
-            initial={{ pathLength: 0.6, pathOffset: 0 }}
-            // Only the dash offset moves: no opacity pulsing, so the lines glide instead of blinking.
+            strokeLinecap="round"
+            strokeOpacity={(faint ? 0.14 : 0.2) + path.id * (faint ? 0.025 : 0.035)}
+            initial={{ pathLength: 0.55, pathOffset: 0 }}
+            // Only the dash offset moves, so the lines glide instead of blinking.
             animate={reduceMotion ? { pathLength: 1 } : { pathOffset: [0, 1] }}
             transition={
               reduceMotion

@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { CheckCircle2, PiggyBank, Save, TriangleAlert } from 'lucide-react'
 import { api } from './api'
 import type { Budget } from './types'
-import { Busy, ErrorBox } from './components'
-import { message, money } from './utils'
+import { Busy, ErrorBox, Pal } from './components'
+import { message, money, palTint } from './utils'
 
 function ratio(spent: number, amount: number) {
   if (!amount) return 0
@@ -68,7 +68,6 @@ export default function Budgets({ month, revision, onSaved }: { month: string; r
       <section className={`budget-hero ${over ? 'over' : ''} ${planned ? '' : 'unset'}`}>
         <div className="budget-hero-icon"><PiggyBank size={30} /></div>
         <div className="budget-hero-copy">
-          <span className="eyebrow">MONTHLY SPENDING PLAN</span>
           <h2>{!planned ? 'Set a budget for this month' : over ? `${money(Math.abs(Number(budget.remaining)))} over budget` : `${money(Number(budget.remaining))} remaining`}</h2>
           <p>{planned ? `${money(Number(budget.spent))} spent from a ${money(Number(budget.amount))} monthly budget.` : `${money(Number(budget.spent))} spent so far. Enter an amount to see what’s left.`}</p>
           {planned && <div className="budget-track"><i style={{ width: `${ratio(Number(budget.spent), Number(budget.amount))}%` }} /></div>}
@@ -90,10 +89,10 @@ export default function Budgets({ month, revision, onSaved }: { month: string; r
             const itemOver = limit > 0 && Number(item.spent) > limit
             return (
               <div className="budget-row" key={item.category_id}>
-                <span className="budget-dot" style={{ background: item.color }} />
+                <Pal name={item.name} color={item.color} size={48} />
                 <div className="budget-row-main">
                   <div><strong>{item.name}</strong><span>{money(Number(item.spent))} spent{limit ? ` of ${money(limit)}` : ''}</span></div>
-                  <div className={`budget-track small ${itemOver ? 'over' : ''}`}><i style={{ width: `${ratio(Number(item.spent), limit)}%`, background: item.color }} /></div>
+                  <div className={`budget-track small ${itemOver ? 'over' : ''}`}><i style={{ width: `${ratio(Number(item.spent), limit)}%`, background: palTint(item.color, 70) }} /></div>
                 </div>
                 <label className="category-limit"><span>฿</span><input aria-label={`${item.name} budget`} type="number" min="0" step="0.01" value={amounts[item.category_id] || ''} placeholder="No limit" onChange={(e) => setAmounts((current) => ({ ...current, [item.category_id]: e.target.value }))} /></label>
                 <span className={`budget-state ${itemOver ? 'over' : ''}`}>{itemOver ? <><TriangleAlert size={14} /> Over</> : limit ? `${money(Math.max(limit - Number(item.spent), 0))} left` : 'Not set'}</span>

@@ -74,7 +74,7 @@ export default function Transactions({
     setExporting(true)
     setError('')
     try {
-      await download(`/transactions/export/${format}?${query}`, `slipsnap-transactions.${format}`)
+      await download(`/transactions/export/${format}?${query}`, `mootang-transactions.${format}`)
     } catch (e) {
       setError(message(e))
     } finally {
@@ -94,7 +94,7 @@ export default function Transactions({
           <h2>Every little moment, accounted for.</h2>
           <p>Find, review, and make sense of your everyday spending.</p>
         </div>
-        <button className="button primary" onClick={onAdd}>
+        <button className="button secondary" onClick={onAdd}>
           <Plus size={17} />
           Add transaction
         </button>

@@ -1,23 +1,166 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
-import { X, ReceiptText, ArrowUpRight, LoaderCircle, Plus, Trash2, Download } from 'lucide-react'
+import { X, ArrowUpRight, LoaderCircle, Plus, Trash2, Download } from 'lucide-react'
 import type { Category, Entry, EntryInput } from './types'
 import { download } from './api'
-import { today, message } from './utils'
+import { today, message, palTint } from './utils'
 
-// A slip framed by a scanner's viewfinder: "snap a slip". The gold total line echoes the gold dot in the wordmark.
+// The mascot: หมูตังค์, a piggy bank with a coin on its way in.
 export function BrandMark() {
   return (
     <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-      <g fill="none" stroke="#3fbf86" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 10V7a3 3 0 0 1 3-3h3" />
-        <path d="M22 4h3a3 3 0 0 1 3 3v3" />
-        <path d="M28 22v3a3 3 0 0 1-3 3h-3" />
-        <path d="M10 28H7a3 3 0 0 1-3-3v-3" />
-      </g>
-      <path d="M11 8.5h10V23l-1.67-1.25L17.67 23 16 21.75 14.33 23l-1.66-1.25L11 23Z" fill="#f4efe2" />
-      <path d="M13.5 12.5h5M13.5 15.5h5" stroke="#0c100e" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M13.5 18.5h3" stroke="#c9a46a" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="16" cy="5.2" r="3.4" fill="#ffd166" stroke="#2a2f5a" strokeWidth="1.3" />
+      <path d="M16 3.8v2.8" stroke="#c98a12" strokeWidth="1.1" strokeLinecap="round" />
+      <path d="M7.5 13 6 7.8l5 2.6Z" fill="#ff8fb1" stroke="#2a2f5a" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M24.5 13 26 7.8l-5 2.6Z" fill="#ff8fb1" stroke="#2a2f5a" strokeWidth="1.3" strokeLinejoin="round" />
+      <ellipse cx="11" cy="28" rx="2.4" ry="2" fill="#ff8fb1" stroke="#2a2f5a" strokeWidth="1.3" />
+      <ellipse cx="21" cy="28" rx="2.4" ry="2" fill="#ff8fb1" stroke="#2a2f5a" strokeWidth="1.3" />
+      <ellipse cx="16" cy="18.5" rx="12" ry="10" fill="#ffb3cb" stroke="#2a2f5a" strokeWidth="1.4" />
+      <path d="M13.5 10h5" stroke="#2a2f5a" strokeWidth="1.6" strokeLinecap="round" />
+      <ellipse cx="16" cy="21" rx="4" ry="2.9" fill="#ff8fb1" stroke="#2a2f5a" strokeWidth="1.2" />
+      <ellipse cx="14.6" cy="21" rx=".8" ry="1.1" fill="#2a2f5a" />
+      <ellipse cx="17.4" cy="21" rx=".8" ry="1.1" fill="#2a2f5a" />
+      <circle cx="11.6" cy="16.6" r="1.3" fill="#2a2f5a" />
+      <circle cx="20.4" cy="16.6" r="1.3" fill="#2a2f5a" />
+      <circle cx="12" cy="16.2" r=".4" fill="#fff" />
+      <circle cx="20.8" cy="16.2" r=".4" fill="#fff" />
+      <ellipse cx="8.8" cy="19.6" rx="1.5" ry=".9" fill="#ff6ba7" opacity=".6" />
+      <ellipse cx="23.2" cy="19.6" rx="1.5" ry=".9" fill="#ff6ba7" opacity=".6" />
+    </svg>
+  )
+}
+
+// Each category is a little character: its shape comes from the name, its tint from the category colour.
+function hash(text: string) {
+  let h = 2166136261
+  for (const ch of text) h = Math.imul(h ^ ch.codePointAt(0)!, 16777619)
+  return h >>> 0
+}
+const INK = '#2a2f5a'
+const CREAM = '#fffaf3'
+const BLUSH = '#ff8fb1'
+
+// Eyes with a catchlight, a little "w" mouth and rosy cheeks, centred on (x, y).
+function Face({ x = 40, y = 40, gap = 8 }: { x?: number; y?: number; gap?: number }) {
+  return (
+    <g>
+      <ellipse cx={x - gap} cy={y} rx="2.9" ry="3.3" fill={INK} />
+      <ellipse cx={x + gap} cy={y} rx="2.9" ry="3.3" fill={INK} />
+      <circle cx={x - gap + 1} cy={y - 1.3} r="1" fill="#fff" />
+      <circle cx={x + gap + 1} cy={y - 1.3} r="1" fill="#fff" />
+      <path d={`M${x - 3} ${y + 4}q1.5 2 3 0q1.5 2 3 0`} fill="none" stroke={INK} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <ellipse cx={x - gap - 5} cy={y + 4.5} rx="3.6" ry="2.2" fill={BLUSH} opacity=".55" />
+      <ellipse cx={x + gap + 5} cy={y + 4.5} rx="3.6" ry="2.2" fill={BLUSH} opacity=".55" />
+    </g>
+  )
+}
+
+// A chibi body shared by the upright pals: feet, a round tummy, stubby arms and a big head.
+function Chibi({ body, deep, children, headY = 37 }: { body: string; deep: string; children?: ReactNode; headY?: number }) {
+  return (
+    <g>
+      <ellipse cx="31" cy="73" rx="7" ry="4" fill={deep} />
+      <ellipse cx="49" cy="73" rx="7" ry="4" fill={deep} />
+      <ellipse cx="40" cy="60" rx="17" ry="14" fill={body} />
+      <ellipse cx="40" cy="63" rx="10" ry="8" fill={CREAM} />
+      <ellipse cx="23.5" cy="59" rx="4.5" ry="6.5" fill={body} transform="rotate(25 23.5 59)" />
+      <ellipse cx="56.5" cy="59" rx="4.5" ry="6.5" fill={body} transform="rotate(-25 56.5 59)" />
+      <ellipse cx="40" cy={headY} rx="22" ry="19" fill={body} />
+      <ellipse cx="31" cy={headY - 9} rx="7" ry="4" fill="#fff" opacity=".35" transform={`rotate(-20 31 ${headY - 9})`} />
+      {children}
+    </g>
+  )
+}
+
+type Look = { body: string; deep: string }
+const PALS: ((look: Look) => ReactNode)[] = [
+  // Bunny with a ribbon bow.
+  ({ body, deep }) => (
+    <>
+      <ellipse cx="30" cy="15" rx="6" ry="14" fill={body} transform="rotate(-8 30 15)" />
+      <ellipse cx="50" cy="15" rx="6" ry="14" fill={body} transform="rotate(8 50 15)" />
+      <ellipse cx="30" cy="16" rx="2.8" ry="9" fill={BLUSH} opacity=".6" transform="rotate(-8 30 16)" />
+      <ellipse cx="50" cy="16" rx="2.8" ry="9" fill={BLUSH} opacity=".6" transform="rotate(8 50 16)" />
+      <Chibi body={body} deep={deep}>
+        <Face y={39} />
+        <path d="M40 53l-7-4v8Zm0 0 7-4v8Z" fill="#ff6ba7" />
+        <circle cx="40" cy="53" r="2.4" fill="#e24d8b" />
+      </Chibi>
+    </>
+  ),
+  // Bear with a muzzle.
+  ({ body, deep }) => (
+    <>
+      <circle cx="22" cy="22" r="8" fill={body} />
+      <circle cx="58" cy="22" r="8" fill={body} />
+      <circle cx="22" cy="22" r="4.2" fill={deep} />
+      <circle cx="58" cy="22" r="4.2" fill={deep} />
+      <Chibi body={body} deep={deep}>
+        <ellipse cx="40" cy="45" rx="8" ry="6" fill={CREAM} />
+        <Face y={38} gap={9} />
+        <ellipse cx="40" cy="42.2" rx="2.4" ry="1.7" fill={INK} />
+      </Chibi>
+    </>
+  ),
+  // Chick: one round egg of a body, little wings, a beak and a tuft.
+  ({ body, deep }) => (
+    <>
+      <path d="M37 13q1-7 4-1q3-6 4 1" fill="none" stroke={deep} strokeWidth="3" strokeLinecap="round" />
+      <ellipse cx="32" cy="74" rx="6" ry="3.5" fill="#f5a623" />
+      <ellipse cx="48" cy="74" rx="6" ry="3.5" fill="#f5a623" />
+      <ellipse cx="40" cy="46" rx="25" ry="27" fill={body} />
+      <ellipse cx="31" cy="30" rx="7" ry="4" fill="#fff" opacity=".35" transform="rotate(-20 31 30)" />
+      <ellipse cx="40" cy="57" rx="13" ry="11" fill={CREAM} />
+      <ellipse cx="16" cy="51" rx="5" ry="9" fill={deep} transform="rotate(20 16 51)" />
+      <ellipse cx="64" cy="51" rx="5" ry="9" fill={deep} transform="rotate(-20 64 51)" />
+      <Face y={39} gap={9} />
+      <path d="M36.5 45.5h7l-3.5 4Z" fill="#f5a623" />
+    </>
+  ),
+  // Dino with back spikes and a tail.
+  ({ body, deep }) => (
+    <>
+      <path d="M54 64q16 2 20-8q-4 14-20 16Z" fill={body} />
+      <path d="m24 24 3-9 5 6 3-9 5 7 4-8 3 8 5-6 2 10Z" fill={deep} />
+      <Chibi body={body} deep={deep}>
+        <Face y={40} />
+        <path d="M33 59l3-3 3 3 3-3 3 3 3-3" fill="none" stroke={deep} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity=".7" />
+      </Chibi>
+    </>
+  ),
+  // Cat with a curled tail and whiskers.
+  ({ body, deep }) => (
+    <>
+      <path d="M55 68q14 0 12-14q-1-6 3-7" fill="none" stroke={body} strokeWidth="6" strokeLinecap="round" />
+      <path d="M19 30 21 11l15 12Z" fill={body} />
+      <path d="M61 30 59 11 44 23Z" fill={body} />
+      <path d="M23 25.5 24 16l7 6Z" fill={BLUSH} opacity=".6" />
+      <path d="M57 25.5 56 16l-7 6Z" fill={BLUSH} opacity=".6" />
+      <Chibi body={body} deep={deep}>
+        <path d="M30 38c-3 0-4 2-5 4M50 38c3 0 4 2 5 4" fill="none" stroke={deep} strokeWidth="3" strokeLinecap="round" opacity=".7" />
+        <Face y={40} />
+        <path d="M13 43h7M13 47l7-1.5M67 43h-7M67 47l-7-1.5" stroke={INK} strokeWidth="1.2" strokeLinecap="round" opacity=".55" />
+      </Chibi>
+    </>
+  ),
+  // Whale with a spout.
+  ({ body, deep }) => (
+    <>
+      <path d="M36 16q-4-7 0-11M40 16V3M44 16q4-7 0-11" fill="none" stroke="#7cc8f5" strokeWidth="3" strokeLinecap="round" />
+      <path d="M60 50q12-10 16-2q-6 2-8 8q-4-2-8-6Z" fill={deep} />
+      <path d="M8 46c0-16 14-26 30-26s26 10 26 24c0 16-14 26-29 26S8 62 8 46Z" fill={body} />
+      <ellipse cx="25" cy="31" rx="8" ry="4" fill="#fff" opacity=".35" transform="rotate(-20 25 31)" />
+      <path d="M13 54c6 9 15 13 24 13s19-5 24-13q-12 6-24 6t-24-6Z" fill={CREAM} />
+      <ellipse cx="14" cy="57" rx="4" ry="6.5" fill={deep} transform="rotate(40 14 57)" />
+      <Face x={34} y={44} />
+    </>
+  ),
+]
+export function Pal({ name, color, size = 64, resting = false }: { name: string; color: string; size?: number; resting?: boolean }) {
+  const draw = PALS[hash(name) % PALS.length]
+  return (
+    <svg className={`pal ${resting ? 'resting' : ''}`} width={size} height={size} viewBox="0 0 80 80" aria-hidden="true">
+      {draw({ body: palTint(color, 82), deep: palTint(color, 66) })}
     </svg>
   )
 }
@@ -27,8 +170,7 @@ export function Brand({ light = false }: { light?: boolean }) {
     <div className={`brand ${light ? 'light' : ''}`}>
       <BrandMark />
       <span>
-        slip<span className="brand-soft">snap</span>
-        <span className="brand-dot">.</span>
+        หมู<span className="brand-soft">ตังค์</span>
       </span>
     </div>
   )
@@ -61,7 +203,7 @@ export function Empty({
   return (
     <div className="empty">
       <span className="empty-icon">
-        <ReceiptText size={28} />
+        <Pal name={title} color="#b79cff" size={76} />
       </span>
       <h3>{title}</h3>
       <p>{text}</p>

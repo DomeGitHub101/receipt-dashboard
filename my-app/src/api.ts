@@ -18,7 +18,7 @@ let refreshPromise: Promise<{ user: User; access_token: string }> | null = null
 async function errorMessage(response: Response) {
   const data = await response.json().catch(() => ({}))
   if (Array.isArray(data.detail)) return data.detail.map((d: { msg: string }) => d.msg).join('. ')
-  return data.detail || 'Could not connect to SlipSnap. Please try again.'
+  return data.detail || 'Could not connect to Moo Tang. Please try again.'
 }
 
 export async function restoreSession() {

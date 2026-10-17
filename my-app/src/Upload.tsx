@@ -8,6 +8,7 @@ import {
   ArrowRight,
   RotateCcw,
   ShieldCheck,
+  Lightbulb,
 } from 'lucide-react'
 import { api } from './api'
 import { Busy, EntryForm, ErrorBox } from './components'
@@ -97,7 +98,6 @@ export default function Upload({
           <span className="saved-check">
             <Check size={34} />
           </span>
-          <span className="eyebrow">ONE LESS THING TO REMEMBER</span>
           <h2>All tucked away.</h2>
           <p>บันทึกวันที่ จำนวนเงินที่โอนออก และรหัสอ้างอิงแล้ว</p>
           <div>
@@ -197,7 +197,7 @@ export default function Upload({
               Take a photo
             </button>
             <div className="upload-tip">
-              <span className="tip-bulb">✦</span>
+              <span className="tip-bulb"><Lightbulb size={20} /></span>
               <div>
                 <strong>ให้เห็นวันที่ ยอดเงิน และ QR ชัดเจน</strong>
                 <p>ใช้รูปสลิปต้นฉบับ ไม่ตัดขอบ QR เพื่อช่วยอ่านรหัสอ้างอิงให้ตรงทุกตัว</p>

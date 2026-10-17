@@ -97,7 +97,7 @@ async def link_google(data: GoogleLink, user: User = Depends(current_user), db: 
     claims = await verify_google(data.link_credential)
     owner = await db.scalar(select(User).where(User.google_sub == claims['sub']))
     if owner and owner.id != user.id:
-        raise HTTPException(409, 'This Google account is already linked to another SlipSnap account.')
+        raise HTTPException(409, 'This Google account is already linked to another Moo Tang account.')
     user.google_sub = claims['sub']
     if claims['email'].lower() == user.email:
         user.email_verified = True
@@ -168,7 +168,7 @@ async def setup(data: Confirmation, user: User = Depends(current_user), db: Asyn
     user.totp_pending = cipher().encrypt(secret.encode()).decode()
     user.totp_pending_expires = now() + timedelta(minutes=10)
     await db.commit()
-    return {'secret': secret, 'uri': pyotp.TOTP(secret).provisioning_uri(user.email, issuer_name='SlipSnap')}
+    return {'secret': secret, 'uri': pyotp.TOTP(secret).provisioning_uri(user.email, issuer_name='Moo Tang')}
 
 @router.post('/account/2fa/enable')
 async def enable(data: Confirmation, response: Response, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)):

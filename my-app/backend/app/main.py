@@ -25,7 +25,7 @@ from .account_security import throttle, verify_password, verify_factor, verify_g
 from .account import router as account_router
 from .account_data import router as account_data_router
 
-app = FastAPI(title='SlipSnap API', version='1.0.0')
+app = FastAPI(title='Moo Tang API', version='1.0.0')
 app.include_router(account_router)
 app.include_router(account_data_router)
 
@@ -38,8 +38,8 @@ async def privacy_headers(request, call_next):
     return response
 app.add_middleware(CORSMiddleware, allow_origins=[settings.allowed_origin, 'http://127.0.0.1:5173', *settings.additional_origins],
                    allow_credentials=True, allow_methods=['GET', 'POST', 'PUT', 'DELETE'], allow_headers=['Authorization', 'Content-Type'])
-DEFAULTS = [('Food & drinks', '#00704a'), ('Transport', '#c79254'), ('Shopping', '#8ba99a'),
-            ('Bills & utilities', '#90735c'), ('Health', '#b1bf84'), ('Entertainment', '#dbb6a0'), ('Salary', '#466c67'), ('Other', '#a5a59a')]
+DEFAULTS = [('Food & drinks', '#ff8fb1'), ('Transport', '#7cc8f5'), ('Shopping', '#b79cff'),
+            ('Bills & utilities', '#ffb86b'), ('Health', '#7ed9a6'), ('Entertainment', '#ffd166'), ('Salary', '#5fc6b8'), ('Other', '#b8b8c8')]
 
 @app.get('/api/health')
 async def health():
@@ -372,4 +372,4 @@ async def export(format: str, start: date | None = None, end: date | None = None
         stream = io.BytesIO()
         book.save(stream)
         content, mime = stream.getvalue(), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    return Response(content, media_type=mime, headers={'Content-Disposition': f'attachment; filename="slipsnap-transactions.{format}"'})
+    return Response(content, media_type=mime, headers={'Content-Disposition': f'attachment; filename="mootang-transactions.{format}"'})

@@ -95,7 +95,7 @@ async def export_all(data: Confirmation, user: User = Depends(current_user), db:
         for receipt, path in paths:
             archive.write(path, 'receipts/' + receipt.id)
     await db.commit()
-    return Response(output.getvalue(), media_type='application/zip', headers={'Content-Disposition': 'attachment; filename="slipsnap-backup.zip"', 'Cache-Control': 'no-store'})
+    return Response(output.getvalue(), media_type='application/zip', headers={'Content-Disposition': 'attachment; filename="mootang-backup.zip"', 'Cache-Control': 'no-store'})
 
 def read_backup(content):
     try:
@@ -134,7 +134,7 @@ def read_backup(content):
                 blobs[receipt.id] = data
             return backup, blobs
     except (BadZipFile, KeyError, ValueError, ValidationError, RuntimeError, NotImplementedError, OSError):
-        raise HTTPException(422, 'Invalid, incomplete, or oversized SlipSnap backup. No data was changed.')
+        raise HTTPException(422, 'Invalid, incomplete, or oversized Moo Tang backup. No data was changed.')
 
 @router.post('/restore')
 async def restore(file: UploadFile = File(...), password: str = Form(''), code: str = Form(''), confirmation: str = Form(...),
