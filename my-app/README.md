@@ -1,4 +1,4 @@
-# SlipSnap — Receipt OCR Expense Tracker
+# หมูตังค์ (Moo Tang) — Receipt OCR Expense Tracker
 
 The application implements the receipt tracker requirements in the repository's parent `README.md`. The existing `my-app` directory is the frontend root; the FastAPI service lives in `my-app/backend` so all application code stays together.
 
