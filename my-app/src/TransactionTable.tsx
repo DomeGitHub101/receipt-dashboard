@@ -1,4 +1,5 @@
-import { ArrowDownLeft, ArrowUpRight, ReceiptText } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
+import { Pal } from './components'
 import type { Category, Entry } from './types'
 import { money } from './utils'
 
@@ -32,23 +33,15 @@ export function TransactionTable({
               <tr key={entry.id}>
                 <td>
                   <div className="merchant-cell">
-                    <span
-                      className={`merchant-icon ${entry.kind}`}
-                      style={{ backgroundColor: `${cat?.color || '#00704a'}14`, color: cat?.color }}
-                    >
-                      {entry.receipt_id ? (
-                        <ReceiptText size={19} />
-                      ) : entry.kind === 'income' ? (
-                        <ArrowDownLeft size={19} />
-                      ) : (
-                        <ArrowUpRight size={19} />
-                      )}
+                    <span className="merchant-icon">
+                      <Pal name={cat?.name || 'Other'} color={cat?.color || '#b8b8c8'} size={46} />
                     </span>
                     <div>
                       <button className="merchant-name" onClick={() => onEdit(entry)}>
                         {entry.merchant}
                       </button>
                       <span className="merchant-detail">
+                        <span className="merchant-category">{cat?.name || 'Other'} · </span>
                         {entry.receipt_id
                           ? 'Scanned receipt'
                           : entry.kind === 'income'
@@ -81,7 +74,7 @@ export function TransactionTable({
                     aria-label={`Edit ${entry.merchant}`}
                     onClick={() => onEdit(entry)}
                   >
-                    <ArrowUpRight size={17} />
+                    <ChevronRight size={17} />
                   </button>
                 </td>
               </tr>

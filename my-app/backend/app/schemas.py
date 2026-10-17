@@ -24,7 +24,7 @@ class Register(Credentials):
 
 class CategoryInput(BaseModel):
     name: str = Field(min_length=1, max_length=60)
-    color: str = Field(pattern=r'^#[0-9a-fA-F]{6}$', default='#00704a')
+    color: str = Field(pattern=r'^#[0-9a-fA-F]{6}$', default='#ff8fb1')
 
     @field_validator('name')
     @classmethod

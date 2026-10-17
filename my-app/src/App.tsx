@@ -4,12 +4,10 @@ import {
   ArrowLeftRight,
   ScanLine,
   Tags,
-  Plus,
   LogOut,
   Menu,
   X,
   ChevronRight,
-  Leaf,
   CheckCircle2,
   Trash2,
   PiggyBank,
@@ -17,7 +15,7 @@ import {
 } from 'lucide-react'
 import { api, restoreSession, signOut } from './api'
 import type { Category, Entry, EntryInput, Summary, User } from './types'
-import { Brand, Busy, EntryForm, ErrorBox, Modal } from './components'
+import { Brand, Busy, EntryForm, ErrorBox, Modal, Pal } from './components'
 import { message, today } from './utils'
 import Auth from './Auth'
 const Dashboard = lazy(() => import('./Dashboard'))
@@ -227,8 +225,7 @@ export default function App() {
             <X size={20} />
           </button>
         </div>
-        <div className="workspace-label">YOUR LITTLE CORNER</div>
-        <nav aria-label="Main navigation">
+                <nav aria-label="Main navigation">
           {navigation.map((item) => (
             <button
               key={item.id}
@@ -243,8 +240,8 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-note">
-          <span className="note-leaf">
-            <Leaf size={22} />
+          <span className="note-pal">
+            <Pal name="Slippy" color="#ffd166" size={60} />
           </span>
           <h3>Good habits grow.</h3>
           <p>
@@ -280,6 +277,9 @@ export default function App() {
             >
               <Menu size={22} />
             </button>
+            <span className="topbar-brand mobile-only">
+              <Brand />
+            </span>
             <span className="breadcrumb">
               My workspace <span>/</span>{' '}
               <strong>{navigation.find((n) => n.id === page)?.label}</strong>
@@ -296,13 +296,6 @@ export default function App() {
         <main className="main-content">
           <div className="page-heading">
             <div>
-              <span className="eyebrow">
-                {page === 'overview'
-                  ? 'YOUR MONTH, AT A GLANCE'
-                  : page === 'upload'
-                    ? 'A FRESH LITTLE HABIT'
-                    : 'MAKE YOURSELF AT HOME'}
-              </span>
               <h1>{titles[page]}</h1>
               <p>{subtitles[page]}</p>
             </div>
@@ -321,10 +314,10 @@ export default function App() {
                   />
                 </label>
               )}
-              {page === 'overview' && (
-                <button className="button primary desktop-add" onClick={() => setEditing({})}>
-                  <Plus size={18} />
-                  Add transaction
+              {page !== 'overview' && page !== 'upload' && (
+                <button className="button primary header-scan" onClick={() => navigate('upload')}>
+                  <ScanLine size={18} />
+                  Scan a slip
                 </button>
               )}
             </div>
@@ -393,9 +386,17 @@ export default function App() {
           )}
           {page === 'settings' && <Settings onUser={setUser} />}
         </main>
+        {page !== 'upload' && (
+          <div className="scan-dock">
+            <button className="button primary" onClick={() => navigate('upload')}>
+              <ScanLine size={19} />
+              Scan a slip
+            </button>
+          </div>
+        )}
         <footer className="app-footer">
           <span>
-            slipsnap. <span>A little clarity goes a long way.</span>
+            หมูตังค์ <span>A little clarity goes a long way.</span>
           </span>
           <span>Thoughtfully simple.</span>
         </footer>

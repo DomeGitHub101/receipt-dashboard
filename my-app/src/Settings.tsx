@@ -79,34 +79,50 @@ export default function Settings({ onUser }: { onUser: (user: User) => void }) {
   return <div className="security-settings">
     {!action && <ErrorBox error={error} />}
     {notice && <div className="notice" role="status">{notice}</div>}
-    <div className="security-grid">
-      <section className="card security-card"><UserRound /><h2>Profile</h2><p>This name appears across SlipSnap.</p>
+    <section className="card settings-panel" aria-label="Account settings">
+      <div className="settings-row"><span className="settings-icon"><UserRound size={20} /></span>
+        <div className="settings-copy"><h2>Profile</h2><p>This name appears across Moo Tang.</p></div>
         <form className="profile-form" onSubmit={saveProfile} key={status.name}>
           <label>Display name<input name="name" defaultValue={status.name} required maxLength={80} autoComplete="name" /></label>
           <button className="button secondary" disabled={busy}>Save name</button>
         </form>
-      </section>
-      <section className="card security-card"><Mail /><h2>Email verification</h2><p>{status.email}</p><span className="small-tag">{status.email_verified ? 'Verified' : 'Not verified'}</span>
-        {!status.email_verified && !status.email_delivery_configured && <p className="security-muted">Email delivery has not been configured by the administrator yet.{status.google_available ? ' Connecting a Google account with this address also verifies it.' : ''}</p>}
-        {!status.email_verified && <button className="button secondary" disabled={busy || !status.email_delivery_configured} onClick={verifyEmail}>Send verification link</button>}
-        <button className="text-button" disabled={busy} onClick={() => load().catch((e) => setError(message(e)))}>Refresh verification status</button>
-      </section>
+      </div>
+      <div className="settings-row"><span className="settings-icon"><Mail size={20} /></span>
+        <div className="settings-copy"><h2>Email verification</h2><p>{status.email} <span className={`small-tag ${status.email_verified ? 'ok' : ''}`}>{status.email_verified ? 'Verified' : 'Not verified'}</span></p>
+          {!status.email_verified && !status.email_delivery_configured && <p className="security-muted">Email delivery has not been configured by the administrator yet.{status.google_available ? ' Connecting a Google account with this address also verifies it.' : ''}</p>}
+        </div>
+        <div className="settings-actions">
+          {!status.email_verified && <button className="button secondary" disabled={busy || !status.email_delivery_configured} onClick={verifyEmail}>Send verification link</button>}
+          <button className="text-button" disabled={busy} onClick={() => load().catch((e) => setError(message(e)))}>Refresh verification status</button>
+        </div>
+      </div>
       {/* Only relevant when the server offers Google sign-in. */}
-      {status.google_available && <section className="card security-card"><Link2 /><h2>Sign-in methods</h2>
-        <p>Email & password: <strong>{status.has_password ? 'On' : 'Not set'}</strong><br />Google: <strong>{status.google_linked ? 'Connected' : 'Not connected'}</strong></p>
-        {!status.google_linked && !googleClientId && <p className="security-muted">Google sign-in has not been configured by the administrator yet.</p>}
-        {!status.google_linked && googleClientId && <button className="button secondary" onClick={() => open('link')}>Connect Google</button>}
-        {status.google_linked && status.has_password && <button className="button secondary" onClick={() => open('unlink')}>Disconnect Google</button>}
-        {status.google_linked && !status.has_password && <p className="security-muted">Set a password before you can disconnect Google.</p>}
-      </section>}
-      <section className="card security-card"><KeyRound /><h2>Password</h2><p>{status.has_password ? 'Choose a unique password. Changing it signs out your other sessions.' : 'You sign in with Google. Add a password to also sign in with your email.'}</p><button className="button secondary" onClick={() => open('password')}>{titles.password}</button></section>
-      <section className="card security-card danger-zone"><Trash2 /><h2>Delete account</h2><p>Permanently delete your account, transactions, budgets and stored slips.</p><button className="button danger" onClick={() => open('delete')}>Delete account</button></section>
-    </div>
+      {status.google_available && <div className="settings-row"><span className="settings-icon"><Link2 size={20} /></span>
+        <div className="settings-copy"><h2>Sign-in methods</h2>
+          <p>Email & password: <strong>{status.has_password ? 'On' : 'Not set'}</strong><br />Google: <strong>{status.google_linked ? 'Connected' : 'Not connected'}</strong></p>
+          {!status.google_linked && !googleClientId && <p className="security-muted">Google sign-in has not been configured by the administrator yet.</p>}
+          {status.google_linked && !status.has_password && <p className="security-muted">Set a password before you can disconnect Google.</p>}
+        </div>
+        <div className="settings-actions">
+          {!status.google_linked && googleClientId && <button className="button secondary" onClick={() => open('link')}>Connect Google</button>}
+          {status.google_linked && status.has_password && <button className="button secondary" onClick={() => open('unlink')}>Disconnect Google</button>}
+        </div>
+      </div>}
+      <div className="settings-row"><span className="settings-icon"><KeyRound size={20} /></span>
+        <div className="settings-copy"><h2>Password</h2><p>{status.has_password ? 'Choose a unique password. Changing it signs out your other sessions.' : 'You sign in with Google. Add a password to also sign in with your email.'}</p></div>
+        <div className="settings-actions"><button className="button secondary" onClick={() => open('password')}>{titles.password}</button></div>
+      </div>
+    </section>
+    <section className="card danger-zone">
+      <span className="settings-icon"><Trash2 size={20} /></span>
+      <div className="settings-copy"><h2>Delete account</h2><p>Permanently delete your account, transactions, budgets and stored slips.</p></div>
+      <button className="button danger" onClick={() => open('delete')}>Delete account</button>
+    </section>
     {action && <Modal title={titles[action]} onClose={close}>
       <form className="entry-form" onSubmit={submit} key={action}>
         <ErrorBox error={error} />
         {action === 'delete' && <p>This action cannot be undone. Your account and all stored financial data will be permanently deleted.</p>}
-        {action === 'link' && googleClientId && <><p>Choose the Google account you want to use for signing in to SlipSnap.</p>
+        {action === 'link' && googleClientId && <><p>Choose the Google account you want to use for signing in to Moo Tang.</p>
           {linkCredential ? <p className="google-confirmed"><CheckCircle2 size={18} /> Google account selected</p> : <GoogleButton clientId={googleClientId} onCredential={setLinkCredential} />}</>}
         {action === 'unlink' && <p>You will sign in with your email and password only.</p>}
         {needsGoogle

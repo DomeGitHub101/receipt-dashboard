@@ -1,20 +1,40 @@
 import { useState } from 'react'
-import { ArrowDownLeft, ArrowUpRight, Wallet, ReceiptText, Plus, ArrowRight, ScanLine, Leaf } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
+import { Plus, ArrowRight, ScanLine } from 'lucide-react'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LabelList,
+} from 'recharts'
 import type { Summary, Entry, Category } from './types'
-import { Empty } from './components'
-import { money, today } from './utils'
+import { Empty, Pal } from './components'
+import { money, palTint, today } from './utils'
 import { TransactionTable } from './TransactionTable'
 
-// Validated against the dark card surface: both clear 3:1 contrast and stay distinct under colour-blindness.
+// Both series clear 3:1 against the white card; income is blue so nothing reads as the old green.
 const SERIES = {
-  expense: { color: '#c08645', title: 'Daily spending', verb: 'spent', empty: 'No spending recorded this month yet.' },
-  income: { color: '#13784f', title: 'Daily income', verb: 'received', empty: 'No income recorded this month yet.' },
+  expense: {
+    color: '#e8578f',
+    title: 'Daily spending',
+    verb: 'spent',
+    empty: 'No spending recorded this month yet.',
+  },
+  income: {
+    color: '#3b82c4',
+    title: 'Daily income',
+    verb: 'received',
+    empty: 'No income recorded this month yet.',
+  },
 } as const
 type View = keyof typeof SERIES
-const MAX_CATEGORY_ROWS = 6
+const MAX_PALS = 6
 
-const compact = (value: number) => (value >= 1000 ? `${Number((value / 1000).toFixed(1))}K` : String(value))
+const compact = (value: number) =>
+  value >= 1000 ? `${Number((value / 1000).toFixed(1))}K` : String(value)
 const shortMoney = (value: number) => money(Math.round(value))
 // Round axis steps (1, 2, 2.5 or 5 × 10^n) so the gridlines land on clean amounts.
 function axisTicks(max: number) {
@@ -50,7 +70,11 @@ export default function Dashboard({
   const monthName = new Date(`${month}-01T00:00:00`).toLocaleString('en-GB', { month: 'short' })
   const dayLabel = (day: number) => `${day} ${monthName}`
 
-  const daily = summary.daily.map((d) => ({ day: d.day, income: Number(d.income), expense: Number(d.expense) }))
+  const daily = summary.daily.map((d) => ({
+    day: d.day,
+    income: Number(d.income),
+    expense: Number(d.expense),
+  }))
   const series = SERIES[view]
   const values = daily.map((d) => d[view])
   const total = view === 'expense' ? expense : income
@@ -60,57 +84,134 @@ export default function Dashboard({
   const current = today().slice(0, 7)
   const elapsed = month < current ? daily.length : month === current ? Number(today().slice(8)) : 0
   const lastDay = daily.length
-  const ticks = [1, 5, 10, 15, 20, 25, lastDay].filter((d, i, all) => d <= lastDay && all.indexOf(d) === i && !(d !== lastDay && lastDay - d < 3))
+  const ticks = [1, 5, 10, 15, 20, 25, lastDay].filter(
+    (d, i, all) => d <= lastDay && all.indexOf(d) === i && !(d !== lastDay && lastDay - d < 3),
+  )
 
   const spentShare = income > 0 ? Math.round((expense / income) * 100) : null
   const rows = summary.categories.map((c) => ({ ...c, amount: Number(c.amount) }))
-  const shown = rows.length > MAX_CATEGORY_ROWS + 1 ? rows.slice(0, MAX_CATEGORY_ROWS) : rows
+  const shown = rows.length > MAX_PALS + 1 ? rows.slice(0, MAX_PALS) : rows
   const rest = rows.slice(shown.length).reduce((sum, c) => sum + c.amount, 0)
-  const categoryRows = rest ? [...shown, { name: 'Everything else', color: '#a5a59a', amount: rest }] : shown
+  const pals = rest
+    ? [...shown, { name: 'Everything else', color: '#b8b8c8', amount: rest }]
+    : shown
+  // Categories that sat this month out, leaving aside the ones that only collected income.
+  const incomeCategories = new Set(
+    entries.filter((e) => e.kind === 'income').map((e) => e.category_id),
+  )
+  const resting = categories.filter(
+    (c) => !rows.some((r) => r.name === c.name) && !incomeCategories.has(c.id),
+  )
 
-  const stats = [
-    { label: 'Money in', value: money(income), icon: ArrowDownLeft, detail: 'Your income this month', style: 'income' },
-    { label: 'Money out', value: money(expense), icon: ArrowUpRight, detail: 'Your expenses this month', style: 'expense' },
-    { label: 'Left this month', value: money(summary.balance), icon: Wallet, detail: 'Income minus expenses', style: 'balance' },
-    { label: 'Receipts saved', value: String(summary.receipts), icon: ReceiptText, detail: `${summary.count} total transactions`, style: 'receipts' },
-  ]
   return (
     <>
-      <section className="welcome-banner">
-        <span className="banner-icon" aria-hidden="true">
-          <ScanLine size={22} />
-        </span>
-        <div className="banner-copy">
-          <span className="eyebrow">LESS PAPER. MORE PEACE OF MIND.</span>
-          <h2>Your next good habit starts with a snap.</h2>
-        </div>
-        <button className="button primary" onClick={onScan}>
-          <ScanLine size={17} />
-          Scan a receipt
-        </button>
-      </section>
-      <section className="stats-grid">
-        {stats.map((stat) => (
-          <article className={`stat-card ${stat.style}`} key={stat.label}>
-            <div className="stat-top">
-              <span>{stat.label}</span>
-              <stat.icon size={18} />
-            </div>
-            <strong>{stat.value}</strong>
-            {stat.style === 'balance' && spentShare !== null ? (
-              <div className="spend-meter">
-                <div className="meter-track" role="meter" aria-label="Share of income spent" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(spentShare, 100)}>
-                  <span className={spentShare > 100 ? 'over' : spentShare > 80 ? 'high' : ''} style={{ width: `${Math.min(spentShare, 100)}%` }} />
-                </div>
-                <small>{spentShare > 100 ? `Spent ${spentShare}% of income · over by ${money(expense - income)}` : `Spent ${spentShare}% of your income`}</small>
+      <section className="month-plate" aria-labelledby="month-plate-title">
+        <div className="month-plate-main">
+          <h2 id="month-plate-title">
+            Spent in {new Date(`${month}-01T00:00:00`).toLocaleString('en-GB', { month: 'long' })}
+          </h2>
+          <strong className="month-total">{money(expense)}</strong>
+          {spentShare !== null && (
+            <div className="spend-meter">
+              <div
+                className="meter-track"
+                role="meter"
+                aria-label="Share of income spent"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.min(spentShare, 100)}
+              >
+                <span
+                  className={spentShare > 100 ? 'over' : spentShare > 80 ? 'high' : ''}
+                  style={{ width: `${Math.min(spentShare, 100)}%` }}
+                />
               </div>
-            ) : (
-              <small>{stat.detail}</small>
-            )}
-          </article>
-        ))}
+              <small>
+                {spentShare > 100
+                  ? `${spentShare}% of income · over by ${money(expense - income)}`
+                  : `${spentShare}% of your income`}
+              </small>
+            </div>
+          )}
+          <ul className="plate-pills">
+            <li className="pill mint">
+              Money in <b>{money(income)}</b>
+            </li>
+            <li className={`pill ${Number(summary.balance) < 0 ? 'blush' : 'butter'}`}>
+              Left <b>{money(summary.balance)}</b>
+            </li>
+            <li className="pill lilac">
+              {summary.receipts} {summary.receipts === 1 ? 'slip' : 'slips'} scanned ·{' '}
+              {summary.count} entries
+            </li>
+          </ul>
+        </div>
+        <div className="month-plate-actions">
+          <button className="button primary scan-cta" onClick={onScan}>
+            <ScanLine size={19} />
+            Scan a slip
+          </button>
+          <button className="button secondary" onClick={onAdd}>
+            <Plus size={17} />
+            Add by hand
+          </button>
+        </div>
       </section>
-      <div className="charts-grid">
+
+      <div className="overview-grid">
+        <section className="card roster-card" aria-labelledby="roster-title">
+          <div className="section-heading">
+            <div>
+              <h2 id="roster-title">Where it went</h2>
+              <p>Your categories, ranked by spending this month.</p>
+            </div>
+          </div>
+          {pals.length ? (
+            <ol className="roster">
+              {pals.map((c, i) => {
+                const share = expense ? (c.amount / expense) * 100 : 0
+                return (
+                  <li
+                    key={c.name}
+                    className={`pal-card ${i === 0 ? 'top' : ''}`}
+                    style={{ ['--tint' as string]: palTint(c.color, 95) }}
+                  >
+                    <span className="rank-flag" aria-label={`Rank ${i + 1}`}>
+                      {i + 1}
+                    </span>
+                    <Pal name={c.name} color={c.color} size={92} />
+                    <span className="plate name-plate" style={{ background: palTint(c.color, 88) }}>
+                      {c.name}
+                    </span>
+                    <span className="plate amount-plate">{shortMoney(c.amount)}</span>
+                    <span className="plate note-plate">
+                      {share < 1 ? '<1%' : `${Math.round(share)}%`} of total
+                    </span>
+                  </li>
+                )
+              })}
+            </ol>
+          ) : (
+            <Empty
+              title="Make room for clarity"
+              text="Your spending categories will appear here as you go."
+            />
+          )}
+          {pals.length > 0 && resting.length > 0 && (
+            <div className="resting-row">
+              <h3>Resting this month</h3>
+              <ul>
+                {resting.slice(0, 8).map((c) => (
+                  <li key={c.id}>
+                    <Pal name={c.name} color={c.color} size={48} resting />
+                    <span className="plate">{c.name}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+
         <section className="card activity-card">
           <div className="section-heading">
             <div>
@@ -119,7 +220,12 @@ export default function Dashboard({
             </div>
             <div className="segmented" role="group" aria-label="Chart data">
               {(Object.keys(SERIES) as View[]).map((key) => (
-                <button key={key} type="button" aria-pressed={view === key} onClick={() => setView(key)}>
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={view === key}
+                  onClick={() => setView(key)}
+                >
                   {key === 'expense' ? 'Spending' : 'Income'}
                 </button>
               ))}
@@ -150,15 +256,19 @@ export default function Dashboard({
               {total > 0 ? (
                 <div className="bar-chart">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={daily} margin={{ top: 22, right: 6, left: 0, bottom: 0 }} barCategoryGap="20%">
-                      <CartesianGrid vertical={false} stroke="#212a25" />
+                    <BarChart
+                      data={daily}
+                      margin={{ top: 22, right: 6, left: 0, bottom: 0 }}
+                      barCategoryGap="20%"
+                    >
+                      <CartesianGrid vertical={false} stroke="#f1e6ef" />
                       <XAxis
                         dataKey="day"
                         ticks={ticks}
                         interval={0}
-                        axisLine={{ stroke: '#2c3832' }}
+                        axisLine={{ stroke: '#e3d7e6' }}
                         tickLine={false}
-                        tick={{ fontSize: 11, fill: '#8f9b94' }}
+                        tick={{ fontSize: 11, fill: '#5f6388' }}
                         tickFormatter={(d) => String(d)}
                       />
                       <YAxis
@@ -168,11 +278,11 @@ export default function Dashboard({
                         domain={[0, yTicks[yTicks.length - 1]]}
                         ticks={yTicks}
                         interval={0}
-                        tick={{ fontSize: 11, fill: '#8f9b94' }}
+                        tick={{ fontSize: 11, fill: '#5f6388' }}
                         tickFormatter={compact}
                       />
                       <Tooltip
-                        cursor={{ fill: '#ffffff0a' }}
+                        cursor={{ fill: '#ff6ba714' }}
                         content={({ active, payload, label }) =>
                           active && payload?.length ? (
                             <div className="chart-tooltip">
@@ -183,12 +293,23 @@ export default function Dashboard({
                           ) : null
                         }
                       />
-                      <Bar dataKey={view} fill={series.color} radius={[4, 4, 0, 0]} maxBarSize={18} isAnimationActive={false}>
+                      <Bar
+                        dataKey={view}
+                        fill={series.color}
+                        radius={[6, 6, 2, 2]}
+                        maxBarSize={16}
+                        isAnimationActive={false}
+                      >
                         <LabelList
                           dataKey={view}
                           content={({ x, y, width, index }) =>
                             index === peak ? (
-                              <text x={Number(x) + Number(width) / 2} y={Number(y) - 8} textAnchor="middle" className="peak-label">
+                              <text
+                                x={Number(x) + Number(width) / 2}
+                                y={Number(y) - 8}
+                                textAnchor="middle"
+                                className="peak-label"
+                              >
                                 {compact(Math.round(values[peak]))}
                               </text>
                             ) : null
@@ -201,23 +322,28 @@ export default function Dashboard({
               ) : (
                 <p className="chart-empty">{series.empty}</p>
               )}
-              <table className="sr-only">
-                <caption>{series.title}</caption>
-                <thead>
-                  <tr>
-                    <th>Day</th>
-                    <th>Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {daily.filter((d) => d[view] > 0).map((d) => (
-                    <tr key={d.day}>
-                      <td>{dayLabel(d.day)}</td>
-                      <td>{money(d[view])}</td>
+              {/* A table cannot shrink to sr-only's 1px box, so a wrapper carries the clipping. */}
+              <div className="sr-only">
+                <table>
+                  <caption>{series.title}</caption>
+                  <thead>
+                    <tr>
+                      <th>Day</th>
+                      <th>Amount</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {daily
+                      .filter((d) => d[view] > 0)
+                      .map((d) => (
+                        <tr key={d.day}>
+                          <td>{dayLabel(d.day)}</td>
+                          <td>{money(d[view])}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
             </>
           ) : (
             <Empty
@@ -232,49 +358,8 @@ export default function Dashboard({
             />
           )}
         </section>
-        <section className="card category-chart">
-          <div className="section-heading">
-            <div>
-              <h2>Where it went</h2>
-              <p>Spending by category, largest first.</p>
-            </div>
-          </div>
-          {categoryRows.length ? (
-            <>
-              <div className="category-total">
-                <strong>{money(expense)}</strong>
-                <span>
-                  spent across {rows.length} {rows.length === 1 ? 'category' : 'categories'}
-                </span>
-              </div>
-              <ol className="category-bars">
-                {categoryRows.map((c) => {
-                  const share = expense ? (c.amount / expense) * 100 : 0
-                  return (
-                    <li key={c.name}>
-                      <div className="category-bar-head">
-                        <span className="category-name">
-                          <i style={{ background: c.color }} />
-                          {c.name}
-                        </span>
-                        <span className="category-value">
-                          {shortMoney(c.amount)}
-                          <em>{share < 1 ? '<1' : Math.round(share)}%</em>
-                        </span>
-                      </div>
-                      <div className="category-track">
-                        <span style={{ width: `${Math.max(share, 1.5)}%`, background: c.color }} />
-                      </div>
-                    </li>
-                  )
-                })}
-              </ol>
-            </>
-          ) : (
-            <Empty title="Make room for clarity" text="Your spending categories will appear here as you go." />
-          )}
-        </section>
       </div>
+
       <section className="card recent-card">
         <div className="section-heading">
           <div>
@@ -289,13 +374,12 @@ export default function Dashboard({
         {entries.length ? (
           <TransactionTable entries={entries.slice(0, 5)} categories={categories} onEdit={onEdit} />
         ) : (
-          <Empty title="A clean slate feels good" text="Scan a receipt or add an entry. We’ll take it from there." />
+          <Empty
+            title="A clean slate feels good"
+            text="Scan a receipt or add an entry. We’ll take it from there."
+          />
         )}
       </section>
-      <div className="page-footnote">
-        <Leaf size={14} />
-        Small habits. A clearer tomorrow.
-      </div>
     </>
   )
 }

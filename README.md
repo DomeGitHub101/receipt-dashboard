@@ -1,11 +1,37 @@
-# SlipSnap — Thai Bank Slip Reader & Expense Tracker
+# หมูตังค์ (Moo Tang) — Thai Bank Slip Reader & Expense Tracker
 
-Upload a Thai bank-transfer or e-wallet slip, and SlipSnap reads the date, amount, sending bank and
+Upload a Thai bank-transfer or e-wallet slip, and หมูตังค์ reads the date, amount, sending bank and
 transaction reference, then logs it as an expense. A dashboard summarizes income, spending and
-monthly budgets.
+monthly budgets, with every spending category drawn as its own little character.
 
 Built as a personal-use tool and portfolio project. Everything runs locally: OCR happens on your own
-machine and no cloud OCR API is contacted.
+machine and no cloud OCR API is contacted. (Formerly named SlipSnap.)
+
+![Overview on desktop: the month's spending, categories ranked as characters, and the daily chart](docs/screenshots/desktop-overview.png)
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/mobile-overview.png" alt="Overview on a phone" width="220"></td>
+    <td><img src="docs/screenshots/mobile-transactions.png" alt="Transactions on a phone" width="220"></td>
+    <td><img src="docs/screenshots/mobile-categories.png" alt="Categories on a phone" width="220"></td>
+    <td><img src="docs/screenshots/mobile-sign-in.png" alt="Sign-in on a phone" width="220"></td>
+  </tr>
+</table>
+
+<details>
+<summary>More screens (desktop)</summary>
+
+| Scan a slip | Transactions |
+|---|---|
+| ![Scan a slip](docs/screenshots/desktop-upload.png) | ![Transactions](docs/screenshots/desktop-transactions.png) |
+| **Budgets** | **Categories** |
+| ![Budgets](docs/screenshots/desktop-budgets.png) | ![Categories](docs/screenshots/desktop-categories.png) |
+
+![Sign-in](docs/screenshots/desktop-sign-in.png)
+
+</details>
+
+Screenshots use a demo account with made-up transactions.
 
 ## Features
 
@@ -19,15 +45,18 @@ machine and no cloud OCR API is contacted.
   is not confident.
 - **Duplicate protection** — a per-user unique constraint on the transaction reference rejects the same
   slip being saved twice.
-- **Dashboard and budgets** — monthly income/expense charts, category breakdowns, and monthly budgets
-  with optional per-category limits.
+- **Dashboard and budgets** — the month's spending at a glance, categories ranked as characters
+  ("who ate my money"), a daily income/expense chart, and monthly budgets with optional per-category
+  limits.
+- **Phone first** — a light pastel design built for one-handed use, with "Scan a slip" pinned within
+  thumb reach; installable to the home screen as an app.
 - **Search, filter and export** — filter by date, merchant, category, type and amount; export to CSV or
   Excel with spreadsheet formula-injection protection.
 - **Account security** — JWT access tokens with rotating HttpOnly refresh cookies, Google sign-in,
   authenticator-app 2FA with recovery codes, email verification, password reset, and rate limiting.
 - **Personal backups** — download all data as a ZIP, restore it, or permanently delete the account.
 
-> SlipSnap reads what is printed on a slip. It does **not** verify a payment with the bank.
+> หมูตังค์ reads what is printed on a slip. It does **not** verify a payment with the bank.
 
 ## Tech Stack
 

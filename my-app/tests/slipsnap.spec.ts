@@ -44,7 +44,7 @@ test('account, entries, filters, categories, receipt OCR, export and persistent 
   await expect(page.getByRole('cell', { name: '−฿175.50' })).toBeVisible()
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'CSV', exact: true }).click()
-  expect((await downloadPromise).suggestedFilename()).toBe('slipsnap-transactions.csv')
+  expect((await downloadPromise).suggestedFilename()).toBe('mootang-transactions.csv')
   await page.getByRole('button', { name: 'Clear filters' }).click()
   await navigate('Categories')
   await page.getByRole('button', { name: 'New category' }).click()

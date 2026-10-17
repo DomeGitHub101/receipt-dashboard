@@ -91,7 +91,7 @@ async def reauthenticate(db, user, password, code, google_credential=''):
         claims = await verify_google(google_credential)
         # Only a fresh sign-in with the linked Google account counts as confirmation.
         if not user.google_sub or claims['sub'] != user.google_sub or claims['iat'] < time.time() - 600:
-            raise HTTPException(401, 'Confirm with the Google account linked to SlipSnap.')
+            raise HTTPException(401, 'Confirm with the Google account linked to Moo Tang.')
     else:
         await verify_password(user, password)
     await verify_factor(db, user, code)
@@ -122,7 +122,7 @@ async def email_token(db, user, purpose):
     await db.commit()
     link = settings.public_url.rstrip('/') + '/#' + purpose + '=' + token
     try:
-        await run_in_threadpool(send_mail, user.email, 'SlipSnap: ' + ('Reset password' if purpose == 'reset' else 'Verify email'),
+        await run_in_threadpool(send_mail, user.email, 'Moo Tang: ' + ('Reset password' if purpose == 'reset' else 'Verify email'),
             f'Open this link to {"reset your password" if purpose == "reset" else "verify your email"}:\n\n{link}\n\nThis link expires in {"30 minutes" if purpose == "reset" else "24 hours"} and can only be used once.\nIf you did not request this, ignore this email.')
     except (OSError, smtplib.SMTPException):
         await db.execute(delete(ActionToken).where(ActionToken.digest == digest(token)))

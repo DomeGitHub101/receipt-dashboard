@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Plus, Pencil, Trash2, Tag } from 'lucide-react'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
 import type { FormEvent } from 'react'
 import type { Category } from './types'
 import { api } from './api'
-import { ErrorBox, Modal } from './components'
-import { message } from './utils'
+import { ErrorBox, Modal, Pal } from './components'
+import { message, palTint } from './utils'
 
 export default function Categories({
   categories,
@@ -61,7 +61,7 @@ export default function Categories({
           <p>Make your categories feel like you. Rename them, pick a color, or start fresh.</p>
         </div>
         <button
-          className="button primary"
+          className="button secondary"
           onClick={() => {
             setError('')
             setEditing({})
@@ -73,11 +73,9 @@ export default function Categories({
       </div>
       <div className="category-grid">
         {categories.map((c) => (
-          <article key={c.id} className="card category-manage">
-            <span className="category-icon" style={{ background: `${c.color}18`, color: c.color }}>
-              <Tag size={23} />
-            </span>
-            <h3>{c.name}</h3>
+          <article key={c.id} className="category-manage pal-card" style={{ ['--tint' as string]: palTint(c.color, 95) }}>
+            <Pal name={c.name} color={c.color} size={84} />
+            <h3 className="plate name-plate" style={{ background: palTint(c.color, 88) }}>{c.name}</h3>
             <div>
               <button
                 className="icon-button"
@@ -128,7 +126,7 @@ export default function Categories({
                 className="color-input"
                 type="color"
                 name="color"
-                defaultValue={editing.color || '#00704a'}
+                defaultValue={editing.color || '#ff8fb1'}
               />
             </label>
             <button className="button primary" disabled={busy}>

@@ -52,7 +52,7 @@ class Category(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), index=True)
     name: Mapped[str] = mapped_column(String(60))
-    color: Mapped[str] = mapped_column(String(7), default='#00704a')
+    color: Mapped[str] = mapped_column(String(7), default='#ff8fb1')
 
 class MonthlyBudget(Base):
     __tablename__ = 'monthly_budgets'
