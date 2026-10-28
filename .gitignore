@@ -1,3 +1,5 @@
 # Claude Code local config + Impeccable skill (includes engine binary)
 .claude/
 .impeccable/
+.agents/
+.codex/
